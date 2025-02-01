@@ -1,6 +1,6 @@
 ---
-title: "Example Manuscript Template for a Data Analysis Project"
-author: ""
+title: "Learning Influenza Forecasting"
+author: "Annalise Cramer"
 format:
   docx:
     toc: false
@@ -10,11 +10,8 @@ bibliography: ../../assets/dataanalysis-references.bib
 csl: ../../assets/american-journal-of-epidemiology.csl
 ---
 
+I have two potential ideas for this project. The first one would be more challenging for me, but the second I have more skills for currently, please give me feedback on what you think is reasonable.
 
-
-
-The structure below is one possible setup for a manuscript, or a general data analysis project (including the course project). Adjust as needed. 
-You don't need to have exactly these sections, but the content covering those sections should be addressed.
 
 This uses MS Word as output format. [See here](https://quarto.org/docs/output-formats/ms-word.html) for more information. You can switch to other formats, like html or pdf. See [the Quarto documentation](https://quarto.org/) for other formats.
 
@@ -23,28 +20,24 @@ This uses MS Word as output format. [See here](https://quarto.org/docs/output-fo
 # load a few R packages
 library(here)
 library(knitr)
+library(tidyverse)
+library(survey)
 ```
 
 
 **Authors**  
 
-* First Autor$^{1,2,*}$ (ORCID: 0000-0000-1234-5678) 
-* Second Author$^{3, *}$
-* Third Autor$^{3, \dagger}$
-* Last Author$^{1, 2, \land}$ 
+* Annalise Cramer$^{1,2 \land}$ (ORCID: 0009-0002-8718-3593) 
 
 **Author affiliations**  
 
 1. College of Public Health, University of Georgia, Athens, GA, USA.
-2. Another Affiliation, Athens, GA, USA.
-3. Yet another Affiliation.
+2. Center for Ecology of Infectious Diseases, Athens, GA, USA.
 
-$*$ These authors contributed equally to this work.
-
-$\land$ Corresponding author: some@email.com
+$\land$ Corresponding author: atc10260@uga.edu
 
 $\dagger$ Disclaimer: The opinions expressed in this article are the
-author's own and don't reflect their employer.
+author's own and don't reflect those of the University of Georgia.
 
 
 {{< pagebreak >}}
@@ -67,7 +60,13 @@ _Provide enough background on your topic that others can understand the why and 
 _Describe what the data is, what it contains, where it is from, etc. Eventually this might be part of a methods section._
 
 ## Questions/Hypotheses to be addressed
-_State the research questions you plan to answer with this analysis._
+Option 1: Can I make a flu forecast for this season? When I compare my work to the actual data, will it hold up?
+
+Option 2: 
+
+What is the prevalence of poor mental health? Is poor mental health associated with a positive covid test?
+
+Factors studied will include hours of sleep, reported depressed mood, reported trouble sleeping, recent exercise, and reported social/emotional support.
 
 To cite other work (important everywhere, but likely happens first in introduction), make sure your references are in the bibtex file specified in the YAML header above and have the right bibtex key. Then you can include like this:
 
@@ -81,6 +80,13 @@ Examples of reproducible research projects can for instance be found in [@mckay2
 # Methods 
 
 _Describe your methods. That should describe the data, the cleaning processes, and the analysis approaches. You might want to provide a shorter description here and all the details in the supplement._
+Option 1:
+
+Data for this project would be using positive infleunza case counts, which are listed weekly from CDC's [FluView](https://www.cdc.gov/fluview/index.html). This data is updated weekly, and extends years backwards. Other useful measures are available, such as hospitalizations. I would need to obtain number from each prior week going backawards, I'm not sure if I'd have to do this manually or if there's a consolidated form somewhere. Several people in my lab do forecasting, and I'm hoping to learn enough that I can be caught up to speed on their reserach projects. I plan to use and ARIMA model and a weighted interval score to evaluate my work. I'm currently taking Time Series in the statistics department, so I'm hoping as the semester progresses I will learn more about this modeling technique.
+
+Option 2:
+
+Data for this potential project would be using survey data from the National Health Interview Survey, produced by IPUMS through the University of Minnesota. This data was collected among United States residents of all ages and genders from 2019 - 2022 in the United States. There's 151406 observations and 47 vairables. I would select variables I need, including creating new ones, and using the survey design variables. I would create models (basic and adjusted) to study association (generating prevelance ratios with CIs) between mental health factors (hours of sleep, feeling depressed mood, amount of social and emotional support, trouble sleeping, recent exercise) with a postiive covid test result.
 
 
 ## Schematic of workflow
@@ -104,6 +110,15 @@ _As applicable, explain where and how you got the data. If you directly import t
 
 ## Data import and cleaning
 _Write code that reads in the file and cleans it so it's ready for analysis. Since this will be fairly long code for most datasets, it might be a good idea to have it in one or several R scripts. If that is the case, explain here briefly what kind of cleaning/processing you do, and provide more details and well documented code somewhere (e.g. as supplement in a paper). All materials, including files that contain code, should be commented well so everyone can follow along._
+
+```{r}
+data2_original <- readRDS("~/MADA/CRAMER-MADA-Project/data/NHIS_COVID.rds")
+data2 <- labelled::remove_val_labels(data_original)
+summary(data2)
+
+data_using <- data2 %>%
+  select(STRATA, PSU, PERNUM, SAMPWEIGHT, MOD10DMIN, VIG10DTP, PA18AER, PA18AERSTR, HRSLEEP, DEPFREQ, PHQSLEEP, CMPSUPPORT, CVDTESTRSLT)
+```
 
 
 ## Statistical analysis
