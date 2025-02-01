@@ -60,7 +60,9 @@ _Provide enough background on your topic that others can understand the why and 
 _Describe what the data is, what it contains, where it is from, etc. Eventually this might be part of a methods section._
 
 ## Questions/Hypotheses to be addressed
-Option 1: Can I make a flu forecast for this season? When I compare my work to the actual data, will it hold up?
+Option 1: 
+
+Can I make a flu forecast for this season? When I compare my work to the actual data, will it hold up?
 
 Option 2: 
 
@@ -86,7 +88,7 @@ Data for this project would be using positive infleunza case counts, which are l
 
 Option 2:
 
-Data for this potential project would be using survey data from the National Health Interview Survey, produced by IPUMS through the University of Minnesota. This data was collected among United States residents of all ages and genders from 2019 - 2022 in the United States. There's 151406 observations and 47 vairables. I would select variables I need, including creating new ones, and using the survey design variables. I would create models (basic and adjusted) to study association (generating prevelance ratios with CIs) between mental health factors (hours of sleep, feeling depressed mood, amount of social and emotional support, trouble sleeping, recent exercise) with a postiive covid test result.
+Data for this potential project would be using survey data from the National Health Interview Survey, produced by IPUMS through the University of Minnesota. This data was collected among United States residents of all ages and genders from 2019 - 2022 in the United States. There's 151406 observations and 47 vairables. I would select variables I need, including creating new ones, and using the survey design variables. I would create models (basic and adjusted) to study association (generating prevelance ratios with CIs) between mental health factors (hours of sleep, feeling depressed mood, amount of social and emotional support, trouble sleeping, recent exercise) with a postiive covid test result. I will generate tables and plots for all results.
 
 
 ## Schematic of workflow
