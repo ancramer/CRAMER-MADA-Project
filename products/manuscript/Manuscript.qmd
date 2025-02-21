@@ -10,9 +10,6 @@ bibliography: ../../assets/dataanalysis-references.bib
 csl: ../../assets/american-journal-of-epidemiology.csl
 ---
 
-I have two potential ideas for this project. The first one would be more challenging for me, but the second I have more skills for currently, please give me feedback on what you think is reasonable.
-
-
 This uses MS Word as output format. [See here](https://quarto.org/docs/output-formats/ms-word.html) for more information. You can switch to other formats, like html or pdf. See [the Quarto documentation](https://quarto.org/) for other formats.
 
 
@@ -61,13 +58,9 @@ _Provide enough background on your topic that others can understand the why and 
 _Describe what the data is, what it contains, where it is from, etc. Eventually this might be part of a methods section._
 
 ## Questions/Hypotheses to be addressed
-Option 1: 
 
-Can I make a flu forecast for this season? When I compare my work to the actual data, will it hold up?
-
-Option 2: 
-
-What is the prevalence of poor mental health? Is poor mental health associated with a positive covid test?
+1.) What is the prevalence of poor mental health?
+2.) Is poor mental health associated with a positive covid test?
 
 Factors studied will include hours of sleep, reported depressed mood, reported trouble sleeping, recent exercise, and reported social/emotional support.
 
@@ -83,13 +76,13 @@ Examples of reproducible research projects can for instance be found in [@mckay2
 # Methods 
 
 _Describe your methods. That should describe the data, the cleaning processes, and the analysis approaches. You might want to provide a shorter description here and all the details in the supplement._
-Option 1:
 
-Data for this project would be using positive infleunza case counts, which are listed weekly from CDC's [FluView](https://www.cdc.gov/fluview/index.html). This data is updated weekly, and extends years backwards. Other useful measures are available, such as hospitalizations. I would need to obtain number from each prior week going backawards, I'm not sure if I'd have to do this manually or if there's a consolidated form somewhere. Several people in my lab do forecasting, and I'm hoping to learn enough that I can be caught up to speed on their reserach projects. I plan to use and ARIMA model and a weighted interval score to evaluate my work. I'm currently taking Time Series in the statistics department, so I'm hoping as the semester progresses I will learn more about this modeling technique.
+Data for this project is survey data collected from the National Health Interview Survey, produced by IPUMS through the University of Minnesota. This data was collected among United States residents of all ages and genders from 2019 - 2022 in the United States. There's 151406 observations and 47 vairables. 
 
-Option 2:
+Survey design variables were used and new binary variables were created from other variables. 
 
-Data for this potential project would be using survey data from the National Health Interview Survey, produced by IPUMS through the University of Minnesota. This data was collected among United States residents of all ages and genders from 2019 - 2022 in the United States. There's 151406 observations and 47 vairables. I would select variables I need, including creating new ones, and using the survey design variables. I would create models (basic and adjusted) to study association (generating prevelance ratios with CIs) between mental health factors (hours of sleep, feeling depressed mood, amount of social and emotional support, trouble sleeping, recent exercise) with a postiive covid test result. I will generate tables and plots for all results.
+
+I will create models (basic and adjusted) to study association (generating prevelance ratios with CIs) between mental health factors (hours of sleep, feeling depressed mood, amount of social and emotional support, trouble sleeping, recent exercise benchmarks) with a postiive covid test result. I will generate tables and plots for all results.
 
 
 ## Schematic of workflow
@@ -105,22 +98,22 @@ knitr::include_graphics(here("assets","antigen-recognition.png"))
 ```
 
 
-
-
 ## Data aquisition
-_As applicable, explain where and how you got the data. If you directly import the data from an online source, you can combine this section with the next._
+This data was obtained from IPUMS, used with permission.
 
 
 ## Data import and cleaning
 _Write code that reads in the file and cleans it so it's ready for analysis. Since this will be fairly long code for most datasets, it might be a good idea to have it in one or several R scripts. If that is the case, explain here briefly what kind of cleaning/processing you do, and provide more details and well documented code somewhere (e.g. as supplement in a paper). All materials, including files that contain code, should be commented well so everyone can follow along._
 
-```{r}
-data_original <- readRDS(here("data", "NHIS_COVID.rds"))
-data2 <- labelled::remove_val_labels(data_original)
-summary(data2)
+Raw data called NHIS_COVID.rds, sits with the data folder, in a a subfolder called raw data. The processed data, called data3.rds, is within the data folder in a subfolder called processed-data. The code to clean and explore and process this dadta is within the code folder, in the processing-code subfolder, called data-cleaning-project.qmd.
 
-data_using <- data2 %>%
-  select(STRATA, PSU, PERNUM, SAMPWEIGHT, MOD10DMIN, VIG10DTP, PA18AER, PA18AERSTR, HRSLEEP, DEPFREQ, PHQSLEEP, CMPSUPPORT, CVDTESTRSLT)
+The raw data was loaded, and necessary variables and survery design variables were selected. After exploring each variable, new binary variables were created.
+
+For now, let us load the processed data. Here's a histogram of the processed outcome vairable, which represents whether or not an indivudal has ever tested postive for COVID. Histograms of all vairables are available in the data-cleaning-project.qmd file, but will not be shown here for the sake of space.
+```{r}
+library(here)
+data <- read_rds(here("data", "processed-data", "data3.rds"))
+hist(data$COVID)
 ```
 
 
@@ -144,10 +137,10 @@ Note the loading of the data providing a **relative** path using the `../../` no
 
 ```{r}
 #| label: tbl-summarytable
-#| tbl-cap: "Data summary table."
+#| tbl-cap: "Data summary table, proportions of 0 compared to 1, and proportion NA to not NA."
 #| echo: FALSE
-resulttable=readRDS("../../results/tables/summarytable.rds")
-knitr::kable(resulttable)
+here()
+knitr::include_graphics(here("data","processed-data", "figures", "summary_table.png"))
 ```
 
 
