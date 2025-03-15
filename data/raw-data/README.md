@@ -1,14 +1,6 @@
 #raw-data
 
-This folder should contain all raw data. As needed add sub-folders.
+This folder should contain all raw data. 
 
-Currently, as an example, it contains a simple made-up data-set in an Excel file.
-
-The dataset contains the variables `Height`, `Weight` and `Gender` of a few imaginary individuals.
-
-The dataset purposefully contains some faulty entries that need to be cleaned.
-
-Generally, any dataset should contain some meta-data explaining what each variable in the dataset is. (This is often called a **Codebook**.) For this simple example, the codebook is given as a second sheet in the Excel file.
-
-This raw data-set should generally not be edited by hand. It should instead be loaded and processed/cleaned using code.
-
+The NHIS_COVID.rds file is large, containing many demographic variables and thousands of observations. 
+Not all variables are used, and new variables are crated for ease of use. Processed data is saved under the processed-data folder one level back.

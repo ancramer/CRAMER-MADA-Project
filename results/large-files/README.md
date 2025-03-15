@@ -1,10 +1,9 @@
 # large-files
 
-This is where you should store the results of computations that produce
+Stores the results of computations that produce
 large files, such as posterior samples from Bayesian models.
 
 Folder for any large files that are too big to be tracked with GitHub.
-That's generally anything above around 20MB. 
 
 This folder is set in `.gitignore` to be ignored when pushing/pulling. (The folder itself and the readme will be synced, but all other files will be ignored.)
 

@@ -1,15 +1,7 @@
 # data
 
-The folders inside this folder should contain all data at various stages.
+The raw data is a large rds file which sits in the raw-data folder. 
 
-This data is being loaded/manipulated/changed/saved with code from the `code` folders.
+The smaller, processed, cleaned version is within the processed-data folder.
 
-Raw data is in the `raw-data` folder.
-
-Running the data-cleaning-project.qmd code within the `code` folder shows steps to obtain processed data.
-
-Processed data rests in the `processed-data` folder. 
-
-Exploratory figures and tables are saved within `processed-data`, `figures`.
-
-Data for this project is saved as rds files.
+Some exploratory figures and/or tables are within processed-data under figures.
