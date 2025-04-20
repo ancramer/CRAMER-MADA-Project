@@ -10,8 +10,6 @@ format:
 #csl: ../../assets/american-journal-of-epidemiology.csl
 ---
 
-This uses MS Word as output format. [See here](https://quarto.org/docs/output-formats/ms-word.html) for more information. You can switch to other formats, like html or pdf. See [the Quarto documentation](https://quarto.org/) for other formats.
-
 
 ```{r, echo=FALSE, message=FALSE}
 # load a few R packages
@@ -142,9 +140,6 @@ knitr::include_graphics(here("results","figures", "single_model_table.png"))
 
 ## Full analysis
 
-_Use one or several suitable statistical/machine learning methods to analyze your data and to produce meaningful figures, tables, etc. This might again be code that is best placed in one or several separate R scripts that need to be well documented. You want the code to produce figures and data ready for display as tables, and save those. Then you load them here._
-
-Example tbl-resulttable2 shows a summary of a linear model fit.
 
 
 {{< pagebreak >}}
@@ -163,11 +158,6 @@ _What are the main take-home messages?_
 
 _Include citations in your Rmd file using bibtex, the list of references will automatically be placed at the end_
 
-This paper [@leek2015] discusses types of analyses. 
-
-These papers [@mckay2020; @mckay2020a] are good examples of papers published using a fully reproducible setup similar to the one shown in this template. 
-
-Note that this cited reference will show up at the end of the document, the reference formatting is determined by the CSL file specified in the YAML header. Many more style files for almost any journal [are available](https://www.zotero.org/styles). You also specify the location of your bibtex reference file in the YAML. You can call your reference file anything you like.
 
 
 {{< pagebreak >}}
