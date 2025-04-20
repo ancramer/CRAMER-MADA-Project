@@ -1,5 +1,5 @@
 ---
-title: "Data-Cleaning"
+title: "Exploratory Data Analysis"
 ---
 
 To start, I'll load packages. As I need packages along the way, I'll return here and add them.
@@ -7,6 +7,9 @@ To start, I'll load packages. As I need packages along the way, I'll return here
 library(tidyverse)
 library(gt)
 library(webshot2)
+library(survey)
+library(mice)
+library(CreateTableOne)
 library(here)
 ```
 
@@ -14,6 +17,7 @@ Now, loading data using the here package.
 ```{r}
 here() #set working directory
 data <- readRDS(here("data","processed-data", "data3.rds"))
+data <- labelled::remove_val_labels(data) #removes labels from haven package which cause problems
 ```
 
 Now, I will make plots to explore how these look to ensure there's no problems. I used ChatGPT to help make the table. Each row doesn't add up to 1, this is because the yes/no adds up to 1, and the NA and not NA adds up to 1. Notably, some of these vairables have high NA porportions, but I can't remove them from the set because that would affect the survey design variables, but I will keep it in mind for the rest of the analysis should there be any issues such as singleton strata variables, lower than expected estimates, etc.
@@ -181,4 +185,35 @@ tab1_gt
 here()
 gtsave(tab1_gt, here("results", "figures", "table1.png"))
 ```
+
+Now, let's examine the imputed datasets to ensure they're not containing NAs. I'm only going to display this for one of them, given they were all created the same way, checking one will be adequate.
+```{r}
+#read it in
+here()
+data_imputed <- readRDS(here("data", "processed-data", "binary_imputed_datasets.rds"))
+
+# Use the first completed dataset from the list
+data_imputed_df1 <- data_imputed[[1]]
+
+#select variables we want
+vars <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL", "COVID")
+
+#reshape data
+long_data <- data_imputed_df1 %>%
+  select(all_of(vars)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  filter(!is.na(value))
+
+# Create histograms
+ggplot(long_data, aes(x = value)) +
+  geom_histogram(bins = 30, color = "black", fill = "skyblue") +
+  facet_wrap(~ variable, scales = "free") +   # Facet by variable for separate histograms
+  theme_minimal() +
+  labs(title = "Histograms of Imputed Variables", x = "Value", y = "Frequency")
+
+#checking that there's no NA's in the data
+na_count <- colSums(is.na(long_data))
+na_count
+```
+
 

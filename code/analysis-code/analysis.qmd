@@ -7,6 +7,11 @@ To start, I'll load packages. As I need packages along the way, I'll return here
 library(tidyverse)
 library(survey)
 library(tableone)
+library(mice)
+library(mitools)
+library(miceadds)
+library(tidymodels)
+library(caret)
 library(gt)
 library(here)
 ```
@@ -14,8 +19,10 @@ library(here)
 Now, loading data using the here package.
 ```{r}
 here() #set working directory
-data <- readRDS(here("data","processed-data", "data3.rds"))
-data <- labelled::remove_val_labels(data) #removes labels from haven package which cause problems
+#data <- readRDS(here("data","processed-data", "data3.rds"))
+#data <- labelled::remove_val_labels(data) #removes labels from haven package which cause problems
+
+data_imputed <- readRDS(here("data","processed-data", "binary_imputed_datasets.rds"))
 ```
 
 As a reminder, we are going to use the following variables, and stratify by covid test result.
@@ -25,6 +32,483 @@ DEPRESSED: If individual felt depressed weekly+ or not
 TROUBLE_SLEEPING: If individual reported having trouble sleeping over past several days, more than half days, or nearly every day or not at all
 SOCIAL: If person felt like they were reciveing less social support or not
 COVID: If they've tested positive for covid or not
+
+We create estimates and CIs using complex survery design variables, using the multiple imputed data.
+
+```{r}
+
+# Create survey design objects for each transformed dataset
+svy_designs <- lapply(data_imputed, function(data) {
+  svydesign(ids = ~PSU, strata = ~STRATA, weights = ~SAMPWEIGHT, data = data , nest=TRUE)
+})
+
+# Function to get complete estimates (both 0 and 1) stratified by COVID status
+get_complete_stratified_estimates <- function(var_name) {
+  results <- data.frame(
+    Variable = character(),
+    COVID_Status = character(),
+    Binary_Value = numeric(),
+    Estimate = numeric(),
+    CI_lower = numeric(),
+    CI_upper = numeric(),
+    stringsAsFactors = FALSE
+  )
+  
+  # Loop through COVID status (0 and 1)
+  for (covid_val in c(0, 1)) {
+    covid_label <- ifelse(covid_val == 0, "Negative", "Positive")
+    
+    # Calculate proportions for this COVID status
+    props <- lapply(svy_designs, function(design) {
+      # Create a subset design
+      subdesign <- subset(design, COVID == covid_val)
+      # Create formula for the variable
+      formula <- as.formula(paste0("~factor(", var_name, ")"))
+      # Calculate proportions
+      svymean(formula, subdesign, na.rm = TRUE)
+    })
+    
+    # Pool results
+    pooled <- MIcombine(props)
+    
+    # Extract results for both binary values (if available)
+    coef_names <- names(coef(pooled))
+    
+    # Handle different potential naming patterns
+    for (bin_val in c(0, 1)) {
+      # Check different possible coefficient names
+      possible_names <- c(
+        paste0("factor(", var_name, ")", bin_val),
+        as.character(bin_val)
+      )
+      
+      # Find the matching coefficient name
+      coef_idx <- NULL
+      for (name in possible_names) {
+        if (name %in% coef_names) {
+          coef_idx <- which(coef_names == name)
+          break
+        }
+      }
+      
+      # If found, extract estimates
+      if (!is.null(coef_idx)) {
+        est <- coef(pooled)[coef_idx]
+        ci <- confint(pooled)[coef_idx, ]
+        
+        # Add to results
+        results <- rbind(results, data.frame(
+          Variable = var_name,
+          COVID_Status = covid_label,
+          Binary_Value = bin_val,
+          Estimate = round(est * 100, 1),
+          CI_lower = round(ci[1] * 100, 1),
+          CI_upper = round(ci[2] * 100, 1)
+        ))
+      }
+    }
+  }
+  
+  return(results)
+}
+
+# Variables to analyze
+variables <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL")
+
+# Get complete stratified estimates for each variable
+complete_results <- lapply(variables, get_complete_stratified_estimates)
+
+# Combine results into a single data frame
+complete_df <- do.call(rbind, complete_results)
+
+# Reshape for better presentation
+formatted_results <- complete_df %>%
+  mutate(Binary_Label = ifelse(Binary_Value == 1, "Yes", "No")) %>%
+  select(Variable, COVID_Status, Binary_Label, Estimate, CI_lower, CI_upper) %>%
+  arrange(Variable, COVID_Status, desc(Binary_Label))
+
+print(formatted_results)
+
+```
+
+Now let's turn that into a nice table using GT, and I'll save it to use in the manuscript later. 
+```{r}
+#checking
+summary(formatted_results)
+str(formatted_results)
+names(formatted_results)
+
+# Prepare the data by combining Variable and Binary_Label, pivoting, and formatting the results
+table1_imputed <- formatted_results %>%
+  mutate(Binary_Label = ifelse(Binary_Label == "Yes", 1, 0),  # Convert Yes to 1 and No to 0
+         Variable_Label = paste(Variable, Binary_Label, sep = " = ")) %>%
+  pivot_wider(
+    names_from = COVID_Status,
+    values_from = c(Estimate, CI_lower, CI_upper),
+    names_glue = "{COVID_Status}_{.value}"
+  ) %>%
+  mutate(
+    # Scale the estimates and CI by 0.01
+    Estimate_Negative = Negative_Estimate * 0.01,
+    CI_Negative = sprintf("(%.2f, %.2f)", Negative_CI_lower * 0.01, Negative_CI_upper * 0.01),
+    Estimate_Positive = Positive_Estimate * 0.01,
+    CI_Positive = sprintf("(%.2f, %.2f)", Positive_CI_lower * 0.01, Positive_CI_upper * 0.01)
+  ) %>%
+  select(Variable_Label, Estimate_Negative, CI_Negative, Estimate_Positive, CI_Positive) %>%
+  gt() %>%
+  tab_header(
+    title = "Estimated proportions of mental health related factors by COVID test status"
+  ) %>%
+  tab_spanner(
+    label = "COVID Negative",
+    columns = c(Estimate_Negative, CI_Negative)
+  ) %>%
+  tab_spanner(
+    label = "COVID Positive",
+    columns = c(Estimate_Positive, CI_Positive)
+  ) %>%
+  cols_label(
+    Variable_Label = "Variable",               # Rename Variable_Label to Variable
+    Estimate_Negative = "Estimate",            # Rename Estimate_Negative to Estimate
+    CI_Negative = "95% CI",                    # Rename CI_Negative to 95% CI
+    Estimate_Positive = "Estimate",            # Rename Estimate_Positive to Estimate
+    CI_Positive = "95% CI"                     # Rename CI_Positive to 95% CI
+  )
+
+# Save the table as a PNG
+here()
+gtsave(table1_imputed, here("results", "figures", "table1_imputed.png"))
+```
+################################################################################
+Now, we will start modeling COVID postivity as an outcome of mental health factors. 
+
+Up first, we will create singleton models to individually study the effects of mental health factors on covid test positivity status.
+
+```{r}
+# Create a survey design object for each completed dataset
+survey_designs <- lapply(data_imputed, function(data_i) {
+  svydesign(
+    id = ~PSU,
+    strata = ~STRATA,
+    weights = ~SAMPWEIGHT,
+    nest = TRUE,
+    data = data_i
+  )
+})
+
+
+
+
+
+# Fit svyglm models for EXERCISE predictor
+models_exercise <- lapply(survey_designs, function(dsgn) {
+  svyglm(COVID ~ EXERCISE, design = dsgn, family = quasibinomial())
+})
+
+# Extract coefficients and standard errors for each model
+model_exercise_coef <- lapply(models_exercise, function(model) {
+  data.frame(
+    Estimate = coef(model),
+    Std.Error = sqrt(diag(vcov(model))),
+    stringsAsFactors = FALSE
+  )
+})
+
+# Calculate means and variances for pooling
+estimates <- do.call(rbind, lapply(model_exercise_coef, function(x) x$Estimate))
+se <- do.call(rbind, lapply(model_exercise_coef, function(x) x$Std.Error))
+
+# Compute the mean across imputations
+mean_estimate <- apply(estimates, 2, mean)
+
+# Compute within-imputation variance (average variance across imputations)
+within_variance <- apply(se^2, 2, mean)
+
+# Compute between-imputation variance (variance of the estimates across imputations)
+between_variance <- apply(estimates, 2, var)
+
+# Calculate the total variance using Rubin's rule
+total_variance <- within_variance + (1 + 1 / length(survey_designs)) * between_variance
+
+# Calculate the pooled standard error
+pooled_se <- sqrt(total_variance)
+
+# Calculate the 95% confidence intervals
+ci_low <- mean_estimate - 1.96 * pooled_se
+ci_high <- mean_estimate + 1.96 * pooled_se
+
+# Create a data frame with pooled estimates, standard errors, and confidence intervals
+pooled_exercise <- data.frame(
+  Estimate = mean_estimate,
+  Std.Error = pooled_se,
+  CI_Low = ci_low,
+  CI_High = ci_high
+)
+
+# Display the pooled results
+pooled_exercise
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+library(survey)
+
+# Fit svyglm models for EXERCISE predictor (and other predictors if needed)
+predictors <- c("EXERCISE", "DEPRESSED", "SLEEP", "TROUBLE_SLEEPING", "SOCIAL")
+
+# Fit models for each predictor
+models <- lapply(predictors, function(predictor) {
+  lapply(survey_designs, function(dsgn) {
+    formula <- as.formula(paste("COVID ~", predictor))
+    svyglm(formula, design = dsgn, family = quasibinomial())
+  })
+})
+
+# Extract coefficients and standard errors for each model
+model_coef <- mapply(function(predictor, predictor_models) {
+  lapply(predictor_models, function(model) {
+    data.frame(
+      Estimate = coef(model),
+      Std.Error = sqrt(diag(vcov(model))),
+      stringsAsFactors = FALSE
+    )
+  })
+}, predictors, models, SIMPLIFY = FALSE)
+
+# Calculate means, variances, and p-values for pooling
+pooled_results <- lapply(names(model_coef), function(predictor_name) {
+  coefs <- model_coef[[predictor_name]]
+  
+  estimates <- do.call(rbind, lapply(coefs, function(x) x$Estimate))
+  se <- do.call(rbind, lapply(coefs, function(x) x$Std.Error))
+  
+  # Compute the mean across imputations
+  mean_estimate <- apply(estimates, 2, mean)
+  
+  # Compute within-imputation variance (average variance across imputations)
+  within_variance <- apply(se^2, 2, mean)
+  
+  # Compute between-imputation variance (variance of the estimates across imputations)
+  between_variance <- apply(estimates, 2, var)
+  
+  # Calculate the total variance using Rubin's rule
+  total_variance <- within_variance + (1 + 1 / length(survey_designs)) * between_variance
+  
+  # Calculate the pooled standard error
+  pooled_se <- sqrt(total_variance)
+  
+  # Calculate the 95% confidence intervals
+  ci_low <- mean_estimate - 1.96 * pooled_se
+  ci_high <- mean_estimate + 1.96 * pooled_se
+  
+  # Calculate z-statistics and p-values
+  z_stat <- mean_estimate / pooled_se
+  p_values <- 2 * (1 - pnorm(abs(z_stat)))  # Two-tailed p-value
+  
+  # Exponentiate to get Odds Ratios (ORs) from log-odds
+  or_estimate <- exp(mean_estimate)
+  ci_low_or <- exp(ci_low)
+  ci_high_or <- exp(ci_high)
+  
+  # Create a data frame with pooled Odds Ratios, standard errors, confidence intervals, and p-values
+  data.frame(
+    Predictor = rep(predictor_name, length(mean_estimate)),
+    OR = or_estimate,
+    Std.Error = pooled_se,
+    CI_Low = ci_low_or,
+    CI_High = ci_high_or,
+    p_value = p_values,
+    row.names = names(mean_estimate)
+  )
+})
+
+# Combine results for all predictors into one data frame
+pooled_exercise <- do.call(rbind, pooled_results)
+
+# Display the labeled pooled results
+pooled_exercise
+
+```
+
+Now we will make a nice table of that using gt.
+
+```{r}
+names(pooled_exercise)
+str(pooled_exercise)
+
+#not including intercepts values
+# Assuming 'pooled_exercise' is your data frame
+pooled_exercise %>%
+  group_by(Predictor) %>%
+  slice(2) %>%  # Select only the second row for each Predictor
+  ungroup() %>%
+  mutate(CI = paste0("(", round(CI_Low, 3), ", ", round(CI_High, 3), ")")) %>%
+  select(Predictor, OR, CI, p_value) %>%
+  gt() %>%
+  tab_header(
+    title = "Associations of individual mental health factors with positive covid test result"
+  ) %>%
+  cols_label(
+    Predictor = "Predictor",
+    OR = "Odds Ratio",
+    CI = "Confidence Interval",
+    p_value = "P-Value"
+  ) %>%
+  fmt_number(
+    columns = vars(OR, p_value),
+    decimals = 3
+  )
+
+```
+
+################################################################################
+This is the part of the project in which I demonstrate complex techniques learned during this class.
+
+Next, we will make the multivariate model. I will use cross validation for this. The RMSE is found to be 0.4450602.
+```{r}
+
+cross_validation_imputed_rmse <- function(imputed_data, design, predictors, k_folds = 5) {
+  rmse_list <- numeric(length(imputed_data))  # Store RMSE for each imputation
+  
+  for (i in 1:length(imputed_data)) {
+    data <- imputed_data[[i]]
+    set.seed(123)
+    folds <- sample(1:k_folds, size = nrow(data), replace = TRUE)
+    
+    fold_rmse <- numeric(k_folds)  # RMSE for each fold
+    
+    for (fold in 1:k_folds) {
+      train_data <- data[folds != fold, ]
+      test_data  <- data[folds == fold, ]
+      
+      # Survey design for training and testing
+      train_design <- svydesign(ids = ~1, data = train_data, weights = ~SAMPWEIGHT)
+      formula <- as.formula(paste("COVID ~", paste(predictors, collapse = " + ")))
+      model <- svyglm(formula, design = train_design, family = quasibinomial())
+      
+      # Predictions
+      predictions <- predict(model, newdata = test_data, type = "response")
+      actual <- test_data$COVID
+      
+      # Compute RMSE for this fold
+      fold_rmse[fold] <- sqrt(mean((predictions - actual)^2, na.rm = TRUE))
+    }
+    
+    # Average RMSE over folds for this imputed dataset
+    rmse_list[i] <- mean(fold_rmse)
+  }
+  
+  # Average RMSE over all imputed datasets
+  overall_rmse <- mean(rmse_list)
+  
+  return(list(rmse_per_imputation = rmse_list, overall_rmse = overall_rmse))
+}
+
+# Assuming you have your imputed_data and a vector of predictors
+results <- cross_validation_imputed_rmse(imputed_data = data_imputed,
+                                         design = NULL,  # Not used inside, can be omitted
+                                         predictors = c("AGE", "SLEEP", "DEPRESSED"))
+
+# View results
+results$rmse_per_imputation  # RMSE for each imputed dataset
+results$overall_rmse         # Average RMSE across imputations
+```
+
+Now, we will make a LASSO regression model. For this, I'm not going to use the multiple imputation dataset. I'm just going to pick a sinlge imputed dataset, the first one. The RMSE is 0.276. 
+
+```{r}
+# Extract the first completed imputed dataset
+data1 <- data_imputed[[1]]  # You can loop over 1:5 later
+
+# Then define the survey design
+survey_design <- svydesign(
+  ids = ~PSU,
+  strata = ~STRATA,
+  weights = ~SAMPWEIGHT,
+  data = data1,
+  nest=TRUE
+)
+
+
+set.seed(1234)  # for reproducibility
+
+# Choose your outcome and predictors
+outcome_var <- "DEPRESSED"
+predictor_vars <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL")
+
+# Loop over imputations and compute RMSE
+rmse_list <- map(data_imputed, function(dat) {
+  # Drop missing in predictors or outcome if any slipped through
+  dat <- dat %>% drop_na(all_of(c(outcome_var, predictor_vars, "SAMPWEIGHT")))
+  
+  # Create design matrix X and response y
+  X <- model.matrix(as.formula(paste(outcome_var, "~", paste(predictor_vars, collapse = "+"))), dat)[, -1]
+  y <- dat[[outcome_var]]
+  w <- dat$SAMPWEIGHT
+
+  # Split into training and test sets (e.g., 70/30 split)
+  train_idx <- sample(seq_len(nrow(X)), size = 0.7 * nrow(X))
+  test_idx <- setdiff(seq_len(nrow(X)), train_idx)
+
+  X_train <- X[train_idx, ]
+  y_train <- y[train_idx]
+  w_train <- w[train_idx]
+
+  X_test <- X[test_idx, ]
+  y_test <- y[test_idx]
+  w_test <- w[test_idx]
+
+  # Fit weighted lasso model
+  cv_fit <- cv.glmnet(
+    x = X_train,
+    y = y_train,
+    alpha = 1,
+    weights = w_train,
+    family = "binomial",  # change to "binomial" for binary outcome
+    nfolds = 5
+  )
+
+  # Predict on test set
+  preds <- predict(cv_fit, newx = X_test, s = "lambda.min")
+
+  # Weighted RMSE
+  sqrt(weighted.mean((y_test - preds)^2, w_test))
+})
+
+# Pool RMSE across imputations
+pooled_rmse <- mean(unlist(rmse_list))
+
+# Output
+cat("RMSE for each imputation:\n")
+print(unlist(rmse_list))
+cat("\nPooled RMSE across imputations:", round(pooled_rmse, 3), "\n")
+
+```
+
+
+
+
+
+
+
+
+
+################################################################################
+The following code was used prior to development of imputed data and is no longer relevant. It may be ignored. I am keeping it in case it serves as a useful reference for the rest of the project or future endeavors.
+################################################################################
 
 We create estimates and CIs using complex survey design variables
 ```{r}
@@ -50,8 +534,6 @@ trouble_sleeping <- svyby(~as.factor(TROUBLE_SLEEPING), ~COVID, survey, svymean,
 social <- svyby(~as.factor(SOCIAL), ~COVID, survey, svymean, vartype = "ci", na.rm = TRUE)
 str(exercise)
 ```
-
-
 
 Let's rearrange these exercise numbers into a table. I used ChatGPT and Claude to help with making the table. 
 ```{r}
@@ -154,7 +636,6 @@ exercise_table <- exercise_final %>%
 # Print the table
 exercise_table
 ```
-
 
 Next, we will add the sleep variable. I used ChatGPT for this.
 ```{r}
@@ -686,6 +1167,110 @@ gtsave(combined_all_table, here("results", "figures", "result_table1.png"))
 ```
 
 
+################################################################################
 
+Up next, we will run the singleton models. For these, our outcome variable (covid test result) will be used as a variable for each of the respective predictor vairbales that we created in the processing code. These models appear as the following:
 
+$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Exercise} $$
+$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Sleep} $$
+$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Depressed} $$
+$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{TroubleSleeping} $$
+$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Social} $$
+Create survey design.
+```{r}
+#review names to use below
+names(data)
+
+#create survey object using design variables
+survey_design <- svydesign(
+  ids = ~PSU,
+  strata = ~STRATA,
+  weights = ~SAMPWEIGHT,
+  data = data,
+  nest = TRUE
+)
+
+pr_results <- data.frame()
+
+variables <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", 
+               "SOCIAL")
+
+for (var in variables) {
+  # Create the formula dynamically
+  formula <- as.formula(paste("COVID ~", var))
+  
+  # Fit the model
+  model <- svyglm(
+    formula, 
+    design = survey_design, 
+    family = quasibinomial(link = "log")
+  )
+  
+  # Extract prevalence ratios and confidence intervals
+  pr <- exp(coef(model))  # Prevalence ratios
+  pr_ci <- exp(confint(model))  # Confidence intervals
+  
+  # Extract p-values
+  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
+  
+  # Combine results into a single table
+  pr_results <- rbind(
+    pr_results,
+    data.frame(
+      Variable = var,
+      Estimate = pr[-1],  # Skip the intercept
+      `2.5% CI` = pr_ci[-1, 1],
+      `97.5% CI` = pr_ci[-1, 2],
+      `p-value` = p_values[-1]  # Skip the intercept
+    )
+  )
+}
+
+# Print the results
+print(pr_results)
+
+```
+
+Now, we will make that into a nice quality table using the gt package and the help of chatGPT and Claude.
+```{r}
+#checking
+glimpse(pr_results)
+str(pr_results)
+
+#create the gt table
+pr_results %>%
+  mutate(
+    Predictor = stringr::str_to_title(gsub("_", " ", Variable)),
+    `Prevalence Ratio` = round(Estimate, 2),
+    `95% CI` = paste0("(", round(X2.5..CI, 2), ", ", round(X97.5..CI, 2), ")"),
+    `p-value` = format.pval(p.value, digits = 3, eps = .001)
+  ) %>%
+  select(Predictor, `Prevalence Ratio`, `95% CI`, `p-value`) %>%
+  gt() %>%
+  tab_header(
+    title = md("**Positive COVID Test Result Association with Mental Health Factors**")
+  ) %>%
+  tab_options(
+    column_labels.border.bottom.width = px(1.5),  # Bold line under column headers
+    column_labels.border.bottom.color = "black"
+  )
+
+```
+
+Now, we're going to complete the process of model selection, using backwards selection. We want to end up with a model we can use for prediction purposes. Our initial model looks like this: 
+$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Exercise} + \beta_2 \cdot X_{Sleep} + \beta_3 \cdot X_{Depressed} + \beta_4 \cdot X_{TroubleSleeping} + \beta_5 \cdot X_{Social} $$
+Let's find the AIC value. 
+```{r}
+
+unique(data$COVID)
+model_full <- svyglm(
+  COVID ~ EXERCISE + SLEEP + DEPRESSED + TROUBLE_SLEEPING + SOCIAL,
+  design = survey_design,
+  family = quasibinomial(link = "log")
+)
+# Perform backward selection based on AIC
+model_step <- step(model_full, direction = "backward", trace = 1)
+summary(model_step)
+
+```
 

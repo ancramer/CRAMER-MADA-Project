@@ -7,6 +7,10 @@ To start, I'll load packages. As I need packages along the way, I'll return here
 library(tidyverse)
 library(gt)
 library(webshot2)
+library(survey)
+library(mice)
+library(tableone) #added from part 3 feedback
+library(mitools)
 library(here)
 ```
 
@@ -93,3 +97,107 @@ here()
 write_rds(data2, here("data","processed-data", "data3.rds"))
 ```
 
+After completed EDA, there's significant missingness in the data. At the recommendation of my peers, I will use multiple imputation, creating 5 sets of imputed data. I re-create the binary variables in each of the 5 imputed datasets, then save to use in the EDA file. 
+```{r}
+# First, let's set up the imputation
+# Create a subset of variables for imputation
+data1 <- labelled::remove_val_labels(data_original) #removes labels from haven package which cause problems
+imputation_vars <- c("AGE", "PA18AERSTR", "HRSLEEP", "DEPFREQ", 
+                     "PHQSLEEP", "CMPSUPPORT", "CVDTESTRSLT", 
+                     "STRATA", "PSU", "SAMPWEIGHT")
+
+# Create a subset of your data with just these variables
+data_imp <- data1[, imputation_vars]
+
+# Examine the missing data pattern
+md.pattern(data_imp)
+
+# Initialize the imputation - including survey design variables in the imputation model
+# but not imputing them
+imp <- mice(data_imp, maxit = 0)
+
+# Customize the predictor matrix to account for complex survey design
+pred <- imp$predictorMatrix
+pred[c("STRATA", "PSU", "SAMPWEIGHT"), ] <- 0  # Don't use these as outcomes
+pred[, c("STRATA", "PSU", "SAMPWEIGHT")] <- 1  # Use these as predictors
+
+# Customize the method - ensure we don't impute design variables
+meth <- imp$method
+meth[c("STRATA", "PSU", "SAMPWEIGHT")] <- ""
+
+# Run multiple imputation with 5 imputations (increase m for better estimates)
+imp_data <- mice(data_imp, m = 5, predictorMatrix = pred, method = meth, maxit = 5)
+
+# Check convergence
+plot(imp_data)
+
+# Get a single completed dataset (for example, the first one)
+completed_data1 <- complete(imp_data, 1)
+
+# For analysis with complex survey design
+# Create a survey design object with the imputed data
+# Repeat for each imputed dataset and pool results
+
+# Get all 5 imputed datasets
+imputed_datasets <- lapply(1:5, function(i) complete(imp_data, i))
+
+# Create a function to transform variables into binary using your specific rules
+create_binary_vars <- function(df) {
+  # Clean AGE and PA18AERSTR
+  df$AGE[df$AGE %in% c(997, 999)] <- NA
+  df$PA18AERSTR[df$PA18AERSTR %in% c(0, 7, 8, 9)] <- NA
+  
+  # EXERCISE
+  df$EXERCISE <- ifelse(df$PA18AERSTR %in% c(2, 3, 4), 1,
+                        ifelse(is.na(df$PA18AERSTR), NA, 0))
+  
+  # SLEEP
+  df$SLEEP <- NA_real_
+  df$SLEEP[which(df$AGE < 1)] <- ifelse(df$HRSLEEP[which(df$AGE < 1)] >= 12 &
+                                          df$HRSLEEP[which(df$AGE < 1)] <= 16, 1, 0)
+  df$SLEEP[which(df$AGE >= 1 & df$AGE < 3)] <- ifelse(df$HRSLEEP[which(df$AGE >= 1 & df$AGE < 3)] >= 11 &
+                                                       df$HRSLEEP[which(df$AGE >= 1 & df$AGE < 3)] <= 14, 1, 0)
+  df$SLEEP[which(df$AGE >= 3 & df$AGE < 6)] <- ifelse(df$HRSLEEP[which(df$AGE >= 3 & df$AGE < 6)] >= 10 &
+                                                       df$HRSLEEP[which(df$AGE >= 3 & df$AGE < 6)] <= 13, 1, 0)
+  df$SLEEP[which(df$AGE >= 6 & df$AGE < 13)] <- ifelse(df$HRSLEEP[which(df$AGE >= 6 & df$AGE < 13)] >= 9 &
+                                                        df$HRSLEEP[which(df$AGE >= 6 & df$AGE < 13)] <= 12, 1, 0)
+  df$SLEEP[which(df$AGE >= 13 & df$AGE <= 18)] <- ifelse(df$HRSLEEP[which(df$AGE >= 13 & df$AGE <= 18)] >= 8 &
+                                                           df$HRSLEEP[which(df$AGE >= 13 & df$AGE <= 18)] <= 10, 1, 0)
+  
+  # DEPRESSED
+  df$DEPRESSED <- NA_real_
+  df$DEPRESSED[df$DEPFREQ %in% c(1, 2)] <- 1
+  df$DEPRESSED[df$DEPFREQ %in% c(3, 4, 5)] <- 0
+  df$DEPRESSED[df$DEPFREQ %in% c(0, 7, 8, 9)] <- NA
+
+  # TROUBLE_SLEEPING
+  df$TROUBLE_SLEEPING <- NA_real_
+  df$TROUBLE_SLEEPING[df$PHQSLEEP %in% c(1, 2, 3)] <- 1
+  df$TROUBLE_SLEEPING[df$PHQSLEEP == 0] <- 0
+  df$TROUBLE_SLEEPING[df$PHQSLEEP %in% c(6, 7, 8, 9)] <- NA
+
+  # SOCIAL
+  df$SOCIAL <- NA_real_
+  df$SOCIAL[df$CMPSUPPORT == 1] <- 0
+  df$SOCIAL[df$CMPSUPPORT == 2] <- 1
+  df$SOCIAL[df$CMPSUPPORT == 3] <- 0
+  df$SOCIAL[df$CMPSUPPORT %in% c(0, 7, 8, 9)] <- NA
+
+  # COVID
+  df$COVID <- NA_real_
+  df$COVID[df$CVDTESTRSLT == 2] <- 1
+  df$COVID[df$CVDTESTRSLT == 1] <- 0
+  df$COVID[df$CVDTESTRSLT %in% c(0, 3, 7, 8, 9)] <- NA
+
+  return(df)
+}
+
+# Apply transformation to each imputed dataset
+binary_imputed_datasets <- lapply(imputed_datasets, create_binary_vars)
+
+glimpse(binary_imputed_datasets)
+
+#save for later
+here()
+saveRDS(binary_imputed_datasets, file = here("data", "processed-data", "binary_imputed_datasets.rds"))
+```
