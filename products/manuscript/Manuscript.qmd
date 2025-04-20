@@ -120,35 +120,23 @@ Complex survey design was used to allow for generalizability of results, using v
 ## Exploratory/Descriptive analysis
 
 ```{r}
-#| label: fig-schematic
+#| label: fig-1
 #| fig-cap: "Summary statistics table"
 #| echo: FALSE
 knitr::include_graphics(here("results","figures", "table1_imputed.png"))
 ```
 
 
-```{r}
-#| label: tbl-summarytable
-#| tbl-cap: "Table. 1. Mental health characteristics among Americans from 2019-2022, by SARS-CoV-2 test result status, NHIS"
-#| echo: FALSE
-here()
-knitr::include_graphics(here("results","figures", "result_table1.png"))
-```
-
 
 
 ## Basic statistical analysis
 
-_To get some further insight into your data, if reasonable you could compute simple statistics (e.g. simple models with 1 predictor) to look for associations between your outcome(s) and each individual predictor variable. Though note that unless you pre-specified the outcome and main exposure, any "p<0.05 means statistical significance" interpretation is not valid._
-
-
-fig-result shows a scatterplot figure produced by one of the R scripts.
-
 ```{r}
-#| label: fig-result
-#| fig-cap: "Height and weight stratified by gender."
+#| label: tbl-summarytable
+#| tbl-cap: "Single model table"
 #| echo: FALSE
-#knitr::include_graphics(here("results","figures","height-weight-stratified.png"))
+here()
+knitr::include_graphics(here("results","figures", "single_model_table.png"))
 ```
 
 

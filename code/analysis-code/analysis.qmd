@@ -196,76 +196,6 @@ survey_designs <- lapply(data_imputed, function(data_i) {
   )
 })
 
-
-
-
-
-# Fit svyglm models for EXERCISE predictor
-models_exercise <- lapply(survey_designs, function(dsgn) {
-  svyglm(COVID ~ EXERCISE, design = dsgn, family = quasibinomial())
-})
-
-# Extract coefficients and standard errors for each model
-model_exercise_coef <- lapply(models_exercise, function(model) {
-  data.frame(
-    Estimate = coef(model),
-    Std.Error = sqrt(diag(vcov(model))),
-    stringsAsFactors = FALSE
-  )
-})
-
-# Calculate means and variances for pooling
-estimates <- do.call(rbind, lapply(model_exercise_coef, function(x) x$Estimate))
-se <- do.call(rbind, lapply(model_exercise_coef, function(x) x$Std.Error))
-
-# Compute the mean across imputations
-mean_estimate <- apply(estimates, 2, mean)
-
-# Compute within-imputation variance (average variance across imputations)
-within_variance <- apply(se^2, 2, mean)
-
-# Compute between-imputation variance (variance of the estimates across imputations)
-between_variance <- apply(estimates, 2, var)
-
-# Calculate the total variance using Rubin's rule
-total_variance <- within_variance + (1 + 1 / length(survey_designs)) * between_variance
-
-# Calculate the pooled standard error
-pooled_se <- sqrt(total_variance)
-
-# Calculate the 95% confidence intervals
-ci_low <- mean_estimate - 1.96 * pooled_se
-ci_high <- mean_estimate + 1.96 * pooled_se
-
-# Create a data frame with pooled estimates, standard errors, and confidence intervals
-pooled_exercise <- data.frame(
-  Estimate = mean_estimate,
-  Std.Error = pooled_se,
-  CI_Low = ci_low,
-  CI_High = ci_high
-)
-
-# Display the pooled results
-pooled_exercise
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-library(survey)
-
 # Fit svyglm models for EXERCISE predictor (and other predictors if needed)
 predictors <- c("EXERCISE", "DEPRESSED", "SLEEP", "TROUBLE_SLEEPING", "SOCIAL")
 
@@ -343,15 +273,14 @@ pooled_exercise
 
 ```
 
-Now we will make a nice table of that using gt.
+Now we will make a nice table of that using gt and save it to use in the mauscript.
 
 ```{r}
 names(pooled_exercise)
 str(pooled_exercise)
 
 #not including intercepts values
-# Assuming 'pooled_exercise' is your data frame
-pooled_exercise %>%
+table2 <- pooled_exercise %>%
   group_by(Predictor) %>%
   slice(2) %>%  # Select only the second row for each Predictor
   ungroup() %>%
@@ -371,6 +300,10 @@ pooled_exercise %>%
     columns = vars(OR, p_value),
     decimals = 3
   )
+
+# Save the table as a PNG
+here()
+gtsave(table2, here("results", "figures", "single_model_table.png"))
 
 ```
 
