@@ -48,7 +48,10 @@ author's own and don't reflect those of the University of Georgia.
 
 
 # Summary/Abstract
-_Write a summary of your project._
+
+Isolation and quarantine strategies employed for containment of SARS-Cov-2 infection led to unexpected mental health struggles among the population of the United States. Infected individuals and healthy individuals were affected, but little is known about the potential relationships between mental health and physical health. In this study, we utilized Nataional Health Information Surveys from 2019-2021 to examine the relationships between receieving a positive COVID-19 test and self reporting mental health factors such as meeting recommended guidelines for exercise, meeting the recommended number of hours of sleep per night, reporting feeling depressed recently, reporting having trouble sleeping recently, and reporting receiving less social support. 
+
+We find 
 
 
 {{< pagebreak >}}
@@ -74,16 +77,21 @@ Data for this project is survey data collected from the National Health Intervie
 
 Factors studied will include hours of sleep, reported depressed mood, reported trouble sleeping, recent exercise, and reported social/emotional support.
 
-To cite other work (important everywhere, but likely happens first in introduction), make sure your references are in the bibtex file specified in the YAML header above and have the right bibtex key. Then you can include like this:
 
 {{< pagebreak >}}
 
 
 # Methods 
 
-_Describe your methods. That should describe the data, the cleaning processes, and the analysis approaches. You might want to provide a shorter description here and all the details in the supplement._
+Data was subsetted to years 2019-2022, to cover the brunt of pandemic years. Despite low prevelance of COVID-19 cases in 2019 worldwide, the appearance of COVID-19 in the news (and consequential potential impact on mental health factors) led us to include this data. The final dataset contains 151406 observations.
 
-There's 151406 observations and 47 variables. 
+Variables of interest contained significant amounts of missing information, so multiple imputation was used, creating 5 sets of imputed data that was averaged across the remainder of analysis to produce variables and statistics needed. Complex survey design was used to allow for generalizability of results, using vairbales PSU, STRATA, and SAMPWIEGHT.
+
+Binary variables were created to allow for interpretability. 
+
+~~~
+
+
 
 Survey design variables were used and new binary variables were created from other variables. Using complex survey design variables, a descriptive table was created.
 
@@ -112,59 +120,7 @@ This data was obtained from IPUMS, used with permission.
 ## Data import and cleaning
 
 The following code details the data cleaning process. Labels are removed from the data to make it easier to work with to create models later in the process. Variables needed are selected, then a series of binary varibales are created. Additional details are available in the processing folder.
-```{r}
-here() #set working directory
-data_original <- readRDS(here("data","raw-data", "NHIS_COVID.rds"))
-data1 <- labelled::remove_val_labels(data_original) #removes labels from haven package which cause problems
 
-data1 <- data_original %>%
-  select(STRATA, PSU, PERNUM, SAMPWEIGHT, AGE, PA18AERSTR, HRSLEEP, DEPFREQ, PHQSLEEP, CMPSUPPORT, CVDTESTRSLT)
-
-data2 <- data1 %>%
-  mutate(
-    PA18AERSTR = ifelse(PA18AERSTR %in% c(0, 7, 8, 9), NA, PA18AERSTR), #put NA, 0, 6, 7, 8, 9 to NA
-    EXERCISE = if_else(PA18AERSTR %in% c(2,3,4), 1, 0, missing = NA_real_) #create EXERCISE variable, 1 if guidelines by Am Heart Assoc met for aerobics, strength, or both, 0 if not met
-    ) %>%
-    mutate(
-    AGE = ifelse(AGE %in% c(997, 999), NA, AGE),  #invalid ages to NA
-    SLEEP = case_when( #Based on age, amount of sleep required from https://www.nhlbi.nih.gov/health/sleep/how-much-sleep#:~:text=Experts%20recommend%20that%20adults%20sleep,or%20more%20hours%20a%20night.
-      AGE < 1  ~ if_else(HRSLEEP >= 12 & HRSLEEP <= 16, 1, 0, missing = NA_real_),
-      AGE >= 1 & AGE < 3       ~ if_else(HRSLEEP >= 11 & HRSLEEP <= 14, 1, 0, missing = NA_real_),
-      AGE >= 3 & AGE < 6       ~ if_else(HRSLEEP >= 10 & HRSLEEP <= 13, 1, 0, missing = NA_real_),
-      AGE >= 6 & AGE < 13      ~ if_else(HRSLEEP >= 9 & HRSLEEP <= 12, 1, 0, missing = NA_real_),
-      AGE >= 13 & AGE <= 18    ~ if_else(HRSLEEP >= 8 & HRSLEEP <= 10, 1, 0, missing = NA_real_),
-      TRUE                     ~ NA_real_  #default NA for unspecified ages
-    )) %>%
-  mutate(
-    DEPRESSED = case_when(
-      DEPFREQ %in% c(1, 2) ~ 1, #daily and weekly is considered depressed
-      DEPFREQ %in% c(3, 4, 5)    ~ 0, #monthly and a few times a year and never are considered not depressed
-      DEPFREQ %in% c(0, 7, 8, 9) ~ NA_real_,#NIU & Unknowns are NA
-      TRUE ~ NA_real_ #default NA for unexpected values
-    )) %>%
-  mutate(
-    TROUBLE_SLEEPING = case_when(
-      PHQSLEEP %in% c(1, 2, 3) ~ 1, #several days, more than half days, nearly every day are trouble sleeping
-      PHQSLEEP == 0            ~ 0,  #not at all is no trouble sleeping
-      PHQSLEEP %in% c(6, 7, 8, 9) ~ NA_real_,  #NIU & Unknowns are NA
-      TRUE ~ NA_real_  #default NA for unexpected values
-    )) %>%
-  mutate(
-    SOCIAL = case_when(
-      CMPSUPPORT == 1 ~ 0,   #more social and emotional support
-      CMPSUPPORT == 2 ~ 1,  #less social and emotional support
-      CMPSUPPORT == 3 ~ 0,   #about the same
-      CMPSUPPORT %in% c(0, 7, 8, 9) ~ NA_real_,  # NIU & Unknowns → NA
-      TRUE ~ NA_real_  #default NA for unexpected values
-    )) %>%
-  mutate(
-    COVID = case_when(
-      CVDTESTRSLT == 2 ~ 1,  #yes, had COVID
-      CVDTESTRSLT == 1 ~ 0,  #no, did not have COVID
-      CVDTESTRSLT %in% c(0, 3, 7, 8, 9) ~ NA_real_,  #NIU, did not receive results, unknowns, and NA are NA
-      TRUE ~ NA_real_  #default NA for unexpected values
-    ))
-```
 
 
 ## Statistical analysis
@@ -184,156 +140,17 @@ Next, we will construct simple models before moving onto adjusted models.
 
 ## Exploratory/Descriptive analysis
 
-_Use a combination of text/tables/figures to explore and describe your data. Show the most important descriptive results here. Additional ones should go in the supplement. Even more can be in the R and Quarto files that are part of your project._
 
 The first table below details the proportion of NAs for each mental health variable. We can see this is a little bit high, which may affect analysis later on. Histograms of each variable are available in the eda folder.
 
 The second table shows proportions calculated using complex survey design variables.
 
-```{r}
-data <- data2
-#summarize EXERCISE
-summary_exercise <- data %>%
-  summarise(
-    Variable = "EXERCISE",
-    Prop_1 = mean(EXERCISE == 1, na.rm = TRUE),
-    Prop_0 = mean(EXERCISE == 0, na.rm = TRUE),
-    Prop_NA = mean(is.na(EXERCISE))
-  )
 
-#summarize SLEEP
-summary_sleep <- data %>%
-  summarise(
-    Variable = "SLEEP",
-    Prop_1 = mean(SLEEP == 1, na.rm = TRUE),
-    Prop_0 = mean(SLEEP == 0, na.rm = TRUE),
-    Prop_NA = mean(is.na(SLEEP))
-  )
-
-#summarize DEPRESSED
-summary_depressed <- data %>%
-  summarise(
-    Variable = "DEPRESSED",
-    Prop_1 = mean(DEPRESSED == 1, na.rm = TRUE),
-    Prop_0 = mean(DEPRESSED == 0, na.rm = TRUE),
-    Prop_NA = mean(is.na(DEPRESSED))
-  )
-
-#summarize TROUBLE SLEEPING
-summary_trouble_sleeping <- data %>%
-  summarise(
-    Variable = "TROUBLE SLEEPING",
-    Prop_1 = mean(TROUBLE_SLEEPING == 1, na.rm = TRUE),
-    Prop_0 = mean(TROUBLE_SLEEPING == 0, na.rm = TRUE),
-    Prop_NA = mean(is.na(TROUBLE_SLEEPING))
-  )
-
-#summarize SOCIAL
-summary_social <- data %>%
-  summarise(
-    Variable = "SOCIAL",
-    Prop_1 = mean(SOCIAL == 1, na.rm = TRUE),
-    Prop_0 = mean(SOCIAL == 0, na.rm = TRUE),
-    Prop_NA = mean(is.na(SOCIAL))
-  )
-
-#summarize COVID
-summary_covid <- data %>%
-  summarise(
-    Variable = "COVID",
-    Prop_1 = mean(COVID == 1, na.rm = TRUE),
-    Prop_0 = mean(COVID == 0, na.rm = TRUE),
-    Prop_NA = mean(is.na(COVID))
-  )
-
-#combine all summaries and convert to gt table
-summary_table <- bind_rows(
-  summary_exercise, 
-  summary_sleep, 
-  summary_depressed, 
-  summary_trouble_sleeping, 
-  summary_social, 
-  summary_covid
-) %>%
-  gt() %>%
-  tab_header(
-    title = "Proportions of 1, 0, and NA for Various Variables"
-  )
-
-#print the combined table
-summary_table
-
-#list variables
-varstable1 = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", 
-             "SOCIAL", "COVID")
-
-#list categories
-cat_vartab1 = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", 
-             "SOCIAL", "COVID")
-
-#use function to make table
-Tab1 = CreateTableOne(vars = varstable1, factorVars = cat_vartab1, data = data)
-
-# Convert the TableOne object to a data frame
-tab1_df <- as.data.frame(print(Tab1, showAllLevels = TRUE, quote = FALSE, noSpaces = TRUE))
-
-# Clean up row names
-tab1_df <- tibble::rownames_to_column(tab1_df, "Variable")
-
-# More advanced formatting
-tab1_gt <- gt(tab1_df) %>%
-  # Add a title
-  tab_header(
-    title = md("**COVID test status and Mental Health Factors**"),
-    subtitle = "Survey Results Summary"
-  ) %>%
-  # Format the columns
-  fmt_percent(
-    columns = contains("%"),
-    decimals = 1
-  ) %>%
-  # Group the variables
-  tab_row_group(
-    label = "COVID Status",
-    rows = contains("COVID")
-  ) %>%
-  tab_row_group(
-    label = "Mental Health Indicators",
-    rows = contains(c("DEPRESSED", "TROUBLE_SLEEPING"))
-  ) %>%
-  tab_row_group(
-    label = "Lifestyle Factors",
-    rows = contains(c("EXERCISE", "SLEEP", "SOCIAL"))
-  ) %>%
-  # Style the table
-  tab_style(
-    style = cell_fill(color = "#e6f3ff"),
-    locations = cells_row_groups()
-  ) %>%
-  tab_style(
-    style = list(
-      cell_text(weight = "bold")
-    ),
-    locations = cells_row_groups()
-  ) %>%
-  # Add footnotes if needed
-  tab_footnote(
-    footnote = "Percentages may not sum to 100% due to rounding",
-    locations = cells_column_labels(columns = contains("%"))
-  ) %>%
-  # Adjust column widths
-  cols_width(
-    Variable ~ px(250),
-    everything() ~ px(120)
-  )
-
-tab1_gt
-```
 
 
 @tbl-summarytable shows a summary of the data.
 
-Note the loading of the data providing a **relative** path using the `../../` notation. (Two dots means a folder up). You never want to specify an **absolute** path like `C:\ahandel\myproject\results\` because if you share this with someone, it won't work for them since they don't have that path. You can also use the `here` R package to create paths. See examples of that below. I generally recommend the `here` package.
+
 
 
 ```{r}
