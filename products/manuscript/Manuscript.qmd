@@ -85,30 +85,18 @@ Factors studied will include hours of sleep, reported depressed mood, reported t
 
 Data was subsetted to years 2019-2022, to cover the brunt of pandemic years. Despite low prevelance of COVID-19 cases in 2019 worldwide, the appearance of COVID-19 in the news (and consequential potential impact on mental health factors) led us to include this data. The final dataset contains 151406 observations.
 
-Variables of interest contained significant amounts of missing information, so multiple imputation was used, creating 5 sets of imputed data that was averaged across the remainder of analysis to produce variables and statistics needed. Complex survey design was used to allow for generalizability of results, using vairbales PSU, STRATA, and SAMPWIEGHT.
+Binary variables were created to allow for interpretability. EXERCISE is a combination of number of minutes of passive or aerboic exercise, descirbing whther weekly amount meets the American Heart Association's guidelines for exercise needed to stay healthy, as exercise is known to relate to mental health. SLEEP is based on the NIH guidelines for recommended hours of sleep per day, which differs by age. 
 
-Binary variables were created to allow for interpretability. 
-
-~~~
-
-
-
-Survey design variables were used and new binary variables were created from other variables. Using complex survey design variables, a descriptive table was created.
-
-
-I will create models (basic and adjusted) to study association (generating prevelance ratios with CIs) between mental health factors (hours of sleep, feeling depressed mood, amount of social and emotional support, trouble sleeping, recent exercise benchmarks) with a postiive covid test result. I will generate tables and plots for all results.
+Complex survey design was used to allow for generalizability of results, using vairbales PSU, STRATA, and SAMPWEIGHT.
 
 
 ## Schematic of workflow
 
-Sometimes you might want to show a schematic diagram/figure that was not created with code (if you can do it with code, do it). fig-schematic is an example of some - completely random/unrelated - schematic that was generated with Biorender.
-We store those figures in the `assets` folder.
-
 ```{r}
 #| label: fig-schematic
-#| fig-cap: "A figure that is manually generated and shows some overview/schematic. This has nothing to do with the data, it's just a random one from one of our projects I found and placed here."
+#| fig-cap: "Flowchart depicting methodology"
 #| echo: FALSE
-#knitr::include_graphics(here("assets","antigen-recognition.png"))
+knitr::include_graphics(here("results","figures", "flowchart.png"))
 ```
 
 
