@@ -1,0 +1,183 @@
+---
+title: Project Review  
+author: Rayleen Lewis
+date: April 20, 2025
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+---
+
+# Overview
+
+Title of project: Mental Health Factors and Covid
+
+Name of project author(s): Annalise Cramer
+
+Name of project reviewer: Rayleen Lewis
+
+# Specific project content evaluation
+Evaluate the different parts of the project by filling in the sections below.
+
+
+## Background, Context and Motivation
+How well is the context of the project described? Is a comprehensive background, including summary of previous/related work given? Is the project well placed into the context of existing work (including proper referencing of existing work). Is it clear why the project was undertaken and what new information it hopes to provide?
+
+### Feedback and Comments
+
+Some motivation is provided in the abstract and intro, but more is needed. References should also be added.
+
+### Summary assessment 
+* some contextualization and motivation
+
+
+## Question description
+How well and clear are the question(s)/hypotheses the project aims to address described? Is it clear how the questions relate to the data?
+
+
+### Feedback and Comments
+
+The questions are explicitly stated. I don't have any concerns about the data source. 
+
+### Summary assessment
+* question/hypotheses fully clear
+
+
+## Data description
+How well is the data overall described? Is the source provided? Is a codebook or other meta-information available that makes it clear what the data is? 
+
+### Feedback and Comments
+
+Some additional details about the original variables in NHIS and how they were dichotomized (e.g., what were the guidelines for sleep, was the original NHIS question, "How many hours of sleep do you get a night?"). NHIS is performed by CDC and this should be noted along with access through IPUMS. A reference to the data should also be added. 
+
+### Summary assessment
+* source and overall structure of data somewhat explained
+
+
+## Data wrangling and exploratory analysis
+How well is the data cleaned/processed and explored? Are all steps reasonable and well explained? Are alternatives discussed and considered? Are meaningful exploratory results shown (e.g. in the supplementary materials)?
+
+### Feedback and Comments
+
+Great graphic on the data wrangling work flow! Adding descriptions to the manuscript of the level of missingness and how much data were imputed would be helpful (I did see missingness in the EDA file which was nice). Because COVID questions weren't added until July 2020, everyone from 2019 and the first half of 2020 would be missing COVID information by design; these people shouldn't be included in the analysis of objective 2 regarding COVID. 
+
+### Summary assessment
+* some weaknesses in wrangling and exploratory component
+
+
+
+## Appropriateness of Analysis
+Were the analysis methods appropriate for the data? Was the analysis done properly? Were different components of the analysis (e.g. performance measure, variable selection, data pre-processing, model evaluation) done in the best way possible and explained well?
+
+### Feedback and Comments
+
+Because the very first case of COVID wasn't seen until December 2019, I don't think this year of data should be included in the analysis. Also, COVID information wasn't included in NHIS until July 2020 according to the [NHIS documentation](https://ftp.cdc.gov/pub/Health_Statistics/NCHS/Dataset_Documentation/NHIS/2020/srvydesc-508.pdf), so these people also shouldn't be included, at least for your second objective. I was curious how they handled this with the weighting, and it looks like recommendations on how to deal with this are provided at the link above. 
+
+For Figure 2, it might be more informative to have row %'s (percent of people with sleep = 1 who were positive for COVID), but this is personal preference. 
+
+In your EDA, it looked like the level of missingness was really high for some variables (e.g., >90% for sleep). Was there a systematic reason the level of missingness was so high? Even with multiple imputation, I'm not sure if this should be used. Details on the imputation model should also be provided (i.e., were the same variables in the regression model used for the imputation model?). 
+
+I've never used CV on complex survey data (so I'm not 100% sure about this), but I don't think CV is appropriate for this survey data because it "drops" people in each run, which would mess up the weighting and survey design. 
+
+For the LASSO model, I think there might be typo in Line 388; it looks like depressed is defined as the outcome, but I think this is supposed to be COVID.
+
+### Summary assessment
+* defensible but not optimal analysis
+
+## Presentation
+How well are results presented? Are tables and figures easy to read and understand? Are the main figures/tables publication level quality? 
+
+### Feedback and Comments
+
+Included tables are nicely formatted. 
+
+### Summary assessment
+* results are very well presented
+
+
+## Discussion/Conclusions
+Are the study findings properly discussed? Are strengths and limitations acknowledged? Are findings interpreted properly?
+
+### Feedback and Comments
+
+This section is missing.
+
+### Summary assessment
+* major parts of discussion missing or wrong 
+
+
+## Further comments
+
+Good start, it seems extra tricky to account for the survey design with some of the techniques and models we've learned in class!
+
+
+
+# Overall project content evaluation
+Evaluate overall features of the project  by filling in the sections below.
+
+
+## Structure
+Is the project well structured? Are files in well labeled folders? Do files have reasonable names? Are all "junk" files not needed for analysis/reproduction removed? By just looking at files and folders, can you get an idea of how things fit together?
+
+### Feedback and Comments
+
+Yes, everything was intuitive and easy to find.
+
+### Summary assessment
+* well structured
+
+
+## Documentation 
+How well is the project documented? Are you able to understand each step of the whole analysis, each decision that was made, and each line of code? Is enough information provided as comments in code or as part of Rmd files? 
+
+### Feedback and Comments
+
+Good documentation, and I appreciated that code generated using AI was noted and the AI product was listed. 
+
+### Summary assessment
+* fully and well documented
+
+
+
+## Reproducibility
+Are all results fully reproducible? Is documentation provided which clearly explains how to reproduce things, and does it work without the need for any manual intervention? Are you able to re-run the whole analysis without having to do manual interventions/edits?
+
+### Feedback and Comments
+Great ReadMe files in all folders. The readme in the processing-code folder has an incorrect file name (refers to data-cleaning instead of processing), but this wasn't a big deal because there's only one qmd file in that folder, so it was esay to figure out the correct file to use instead. 
+
+I got a couple of minor errors that caused some problems when running the code:
+eda.qmd:
+
+- CreateTableOne was loaded as a package, but I think this is a function within the tableone package. I got an error when running the code. 
+
+analysis.qmd:
+
+- The package glmnet needed to be loaded (i.e., need to add library(glmnet) to file)
+- Lines 1200-1204: These lines don't run, I get this error: Error in fit$rank : object of type 'closure' is not subsettable
+
+Manuscript rendered without issues.
+
+### Summary assessment
+* small parts not reproducible or required manual intervention 
+
+
+## Thoroughness
+How thorough was the overall study? Were alternatives (e.g. different ways of processing the data or different models) considered? Were alternatives discussed? Were the questions/hypotheses fully and thoroughly addressed?
+
+### Feedback and Comments
+
+Analysis has been performed using multiple models with RMSE output for each model. This hasn't been included in the manuscript yet. The questions haven't been fully addressed given the missing analysis pieces and discussion in the manuscript. There are still some sections of the template in the manuscript. References will also need to be added. 
+
+### Summary assessment
+* weak level of thoroughness
+
+
+## Further comments
+
+Nothing further. 
+
+
+
+
+
