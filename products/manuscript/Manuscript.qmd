@@ -59,7 +59,11 @@ We find
 
 ## General Background Information
 
-During the SARS-CoV pandemic, methods implemented to control the transmission of the disease had broader societal impacts. A common complaint surrounding social distancing and quarantine policies is the effects on mental health 1. This study aims to better understand the associations between mental health factors and contracting covid. Using data from the National Health Interview Surveys collected during the SARS-CoV-2 pandemic, simple and multiple regression models are created.
+When the SARS-CoV-2 pandemic began in late 2019, there were very few control measures enacted within the United States. By Spring of 2020, this had drastically changed, and control measures were broadly put into effect across the country. Social distancing, quantining, isolation, and lockdowns were prioritized control of transmission, but societal impacts were not initially considered. Disruptions to daily routine and social interactions quickly became a widespread concerns for their potential impacts on mental health, with widespread increases in anxiety, depression, loneliness, and sleep disturbances (CITATION NEEDED).
+
+Pandemic control strategies have become commonly criticized for the impacts on individuals' psychological well-being. Research documents the mental health consequences of pandemic control strageies (CITATION SAME AS BEFORE), but the potential relationships between mental health factors and vulnerability to SARS-CoV-2 infection is less understood.
+
+This study seeks to add to the limited understanding of mental health and COVID-19 vulnerability by expliorung associations between mental health factors and COVID-19 test positivity status. Self reported bouts of depressed mood, perceived social support, amount of exercise, and sleep quality (via hours of sleep and reporting difficulty falling asleep) are examined. (CITATION HERE) Simple and multiple regression models including Lasso and Random Forest are used to explore the predicitve power of mental health factors to a positive COVID-19 test.
 
 Cite this properly later:
 1.) https://www.tandfonline.com/doi/full/10.1080/09638237.2020.1757052
@@ -73,7 +77,12 @@ Data for this project is survey data collected from the National Health Intervie
 1.) What is the prevalence of poor mental health?
 2.) Is poor mental health associated with a positive covid test?
 
-Factors studied will include hours of sleep, reported depressed mood, reported trouble sleeping, recent exercise, and reported social/emotional support.
+Factors studied include:
+1.) Average self-reported hours of sleep per night, 
+2.) Self-reported depressed mood, 
+3.) Self-reported trouble sleeping, 
+4.) Self-reported average weekly exercise, and
+ 5.) Self-reported changes to social and emotional support.
 
 
 {{< pagebreak >}}
@@ -99,15 +108,34 @@ National Health Information Survey data was obtained from IPUMS, used with permi
 
 ## Data import and cleaning
 
-Binary variables were created to allow for interpretability. EXERCISE is a combination of number of minutes of passive or aerboic exercise, descirbing whther weekly amount meets the American Heart Association's guidelines for exercise needed to stay healthy, as exercise is known to relate to mental health. SLEEP is based on the NIH guidelines for recommended hours of sleep per day, which differs by age. DEPRESSED includes if the individual reports feeling depressed on a weekly or daily basis, but not at a frequency of monthly or less. TROUBLE_SLEEPING indicates struggling to fall asleep several days per week, more than half the days, or nearly every day. SOCIAL describes individual feeling like they have less social support than their regular amount. Answers for don't know or unsure were converted to missing.
+Data was used in 2020 and after, given the NHIS didn't have questions about COVID-19 testing in 2019, these questions began in 2020. Binary variables were created to allow for interpretability.
 
+EXERCISE is a combination of number of minutes of passive or aerboic exercise, descirbing whether weekly amount meets the American Heart Association's guidelines for exercise needed to stay healthy. For adults, this includes 150 minutes per week of moderate intensity aerobic activity, 75 minutes per week of vigorous aerobic activity, or a combination of both.Children ages 6-17 should get 60 minutes of moderate to vigorous intenisty physical activity. A value of 1 for this binary variable means that the individual met exercise recommendations, and a 0 means that the individual did not meet exercise recommendations.
+
+SLEEP is based on the NIH guidelines for recommended hours of sleep per day, which differs by age. Individuals under age 1 are suggested to get 12-16 hours of sleep per day, children ages 1 to 2 are suggested to get 11-14 hours of sleep per day, children ages 3 to 5 years are suggested to get 10-13 hours of sleep per day, children ages 6 to 12 years are suggested to get 9-12 hours of sleep per day, teens ages 13-18 are suggested to get 8-10 hours of sleep per day, and adults (over the age of 18) are suggested to get 7-9 hours of sleep per day. Guidelines do not require that sleep takes place at nighttime, and details that naps count towards sleep totals. A value of 1 for this binary variable means that the individual met recommendations for hours of sleep per day, and a 0 means that the individual did not meet recommendations for hours of sleep recommendations.
+
+
+DEPRESSED includes a 1 if the individual reports feeling depressed on a weekly or daily basis, but a 0 for feeling depressed at a frequency of monthly or less. 
+
+TROUBLE_SLEEPING includes a 1 if the individual reports struggling to fall asleep several days per week, more than half the days, or nearly every day, and 0 if they report otherwise. 
+
+SOCIAL includes a value of 1 for an individual describing feeling like they have less social support than their regular amount, and a 0 for feeling like they recieve the same or more support.
+
+For all variables, answers for don't know or unsure were converted to missing.
 
 
 ## Statistical analysis
 
-After creating binary variables, significant amounts of data were missing. Multiple imputation was used to create 5 sets of imputed data, and used for the remainder of analysis. To calculate later statisitcs, processes were preformed on each of the 5 sets and then averaged.
+After creating binary variables, significant amounts of data were missing, seen in table below. The proportions of values for answers 1 and 0 for binary variables are shown out out total answers, and then a column including NAs are shown, which details the proportions of NA answers among total individuals included.
 
-Complex survey design was used to allow for generalizability of results, using variables PSU, STRATA, and SAMPWEIGHT. A summary table was generated to find occurence of each of the factors and their inverses among the data. Next, single models were ran to find associations between each variable with covid test postivity. To explore the data further, a multivariate model, LASSO regression, and a third advanced model (replace this) were ran with cross validation. 
+Multiple imputation was used to create 5 sets of imputed data, and used for the remainder of analysis. To calculate later statistics, processes were preformed on each of the 5 sets and then averaged.
+
+```{r}
+#| label: tab-1
+#| fig-cap: "Missingness table"
+#| echo: FALSE
+knitr::include_graphics(here("results","figures", "summary_table_with_nas.png"))
+```
 
 
 {{< pagebreak >}}
@@ -116,6 +144,8 @@ Complex survey design was used to allow for generalizability of results, using v
 # Results
 
 ## Exploratory/Descriptive analysis
+
+Complex survey design was used to allow for generalizability of results, using variables PSU, STRATA, and SAMPWEIGHT. A summary table was generated to find occurence of each of the factors and their inverses among the data. Next, single models were ran to find associations between each variable with covid test postivity. To explore the data further, a multivariate model, LASSO regression, and a third advanced model (replace this) were ran with cross validation. 
 
 ```{r}
 #| label: fig-1

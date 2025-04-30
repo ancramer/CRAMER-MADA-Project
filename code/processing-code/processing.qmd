@@ -21,10 +21,19 @@ data_original <- readRDS(here("data","raw-data", "NHIS_COVID.rds"))
 data1 <- labelled::remove_val_labels(data_original) #removes labels from haven package which cause problems
 ```
 
+Let us remove the data prior to 2020 because COVID was not present yet. Survey design variables are by year so it is not a problem to remove this.
+```{r}
+#filter for years that are not 2019
+data1 <- data1 %>%
+  filter(YEAR != 2019)
+
+#checking
+unique(data1$YEAR)
+```
 Selecting variables we need will make the dataset smaller and quicker to work with. Note it is renamed at each step for reproducibility. 
 ```{r}
-names(data_original) #view names of variables
-data1 <- data_original %>%
+names(data1) #view names of variables
+data1 <- data1 %>%
   select(STRATA, PSU, PERNUM, SAMPWEIGHT, AGE, PA18AERSTR, HRSLEEP, DEPFREQ, PHQSLEEP, CMPSUPPORT, CVDTESTRSLT)
 ```
 
@@ -45,48 +54,54 @@ We will create binary vairables in a new dataset. For each variable, those who a
 ```{r}
 data2 <- data1 %>%
   mutate(
-    PA18AERSTR = ifelse(PA18AERSTR %in% c(0, 7, 8, 9), NA, PA18AERSTR), #put NA, 0, 6, 7, 8, 9 to NA
-    EXERCISE = if_else(PA18AERSTR %in% c(2,3,4), 1, 0, missing = NA_real_) #create EXERCISE variable, 1 if guidelines by Am Heart Assoc met for aerobics, strength, or both, 0 if not met
-    ) %>%
-    mutate(
-    AGE = ifelse(AGE %in% c(997, 999), NA, AGE),  #invalid ages to NA
-    SLEEP = case_when( #Based on age, amount of sleep required from https://www.nhlbi.nih.gov/health/sleep/how-much-sleep#:~:text=Experts%20recommend%20that%20adults%20sleep,or%20more%20hours%20a%20night.
-      AGE < 1  ~ if_else(HRSLEEP >= 12 & HRSLEEP <= 16, 1, 0, missing = NA_real_),
+    PA18AERSTR = ifelse(PA18AERSTR %in% c(0, 7, 8, 9), NA, PA18AERSTR), # put 0, 7, 8, 9 to NA
+    EXERCISE = if_else(PA18AERSTR %in% c(2, 3, 4), 1, 0, missing = NA_real_) # 1 if AHA guidelines met, else 0
+  ) %>%
+  mutate(
+    AGE = ifelse(AGE %in% c(997, 999), NA, AGE),  # invalid ages to NA
+    SLEEP = case_when( # Based on age, from NHLBI sleep guidelines
+      AGE < 1                  ~ if_else(HRSLEEP >= 12 & HRSLEEP <= 16, 1, 0, missing = NA_real_),
       AGE >= 1 & AGE < 3       ~ if_else(HRSLEEP >= 11 & HRSLEEP <= 14, 1, 0, missing = NA_real_),
       AGE >= 3 & AGE < 6       ~ if_else(HRSLEEP >= 10 & HRSLEEP <= 13, 1, 0, missing = NA_real_),
       AGE >= 6 & AGE < 13      ~ if_else(HRSLEEP >= 9 & HRSLEEP <= 12, 1, 0, missing = NA_real_),
       AGE >= 13 & AGE <= 18    ~ if_else(HRSLEEP >= 8 & HRSLEEP <= 10, 1, 0, missing = NA_real_),
-      TRUE                     ~ NA_real_  #default NA for unspecified ages
-    )) %>%
+      AGE > 18                 ~ if_else(HRSLEEP >= 7 & HRSLEEP <= 9, 1, 0, missing = NA_real_),
+      TRUE                     ~ NA_real_  # default NA for unspecified or missing AGE
+    )
+  ) %>%
   mutate(
     DEPRESSED = case_when(
-      DEPFREQ %in% c(1, 2) ~ 1, #daily and weekly is considered depressed
-      DEPFREQ %in% c(3, 4, 5)    ~ 0, #monthly and a few times a year and never are considered not depressed
-      DEPFREQ %in% c(0, 7, 8, 9) ~ NA_real_,#NIU & Unknowns are NA
-      TRUE ~ NA_real_ #default NA for unexpected values
-    )) %>%
+      DEPFREQ %in% c(1, 2) ~ 1, # daily and weekly → depressed
+      DEPFREQ %in% c(3, 4, 5) ~ 0, # monthly or less → not depressed
+      DEPFREQ %in% c(0, 7, 8, 9) ~ NA_real_,
+      TRUE ~ NA_real_
+    )
+  ) %>%
   mutate(
     TROUBLE_SLEEPING = case_when(
-      PHQSLEEP %in% c(1, 2, 3) ~ 1, #several days, more than half days, nearly every day are trouble sleeping
-      PHQSLEEP == 0            ~ 0,  #not at all is no trouble sleeping
-      PHQSLEEP %in% c(6, 7, 8, 9) ~ NA_real_,  #NIU & Unknowns are NA
-      TRUE ~ NA_real_  #default NA for unexpected values
-    )) %>%
+      PHQSLEEP %in% c(1, 2, 3) ~ 1,  # several days or more → trouble sleeping
+      PHQSLEEP == 0            ~ 0,  # not at all
+      PHQSLEEP %in% c(6, 7, 8, 9) ~ NA_real_,
+      TRUE ~ NA_real_
+    )
+  ) %>%
   mutate(
     SOCIAL = case_when(
-      CMPSUPPORT == 1 ~ 0,   #more social and emotional support
-      CMPSUPPORT == 2 ~ 1,  #less social and emotional support
-      CMPSUPPORT == 3 ~ 0,   #about the same
-      CMPSUPPORT %in% c(0, 7, 8, 9) ~ NA_real_,  # NIU & Unknowns → NA
-      TRUE ~ NA_real_  #default NA for unexpected values
-    )) %>%
+      CMPSUPPORT == 1 ~ 0,  # more support
+      CMPSUPPORT == 2 ~ 1,  # less support
+      CMPSUPPORT == 3 ~ 0,  # about the same
+      CMPSUPPORT %in% c(0, 7, 8, 9) ~ NA_real_,
+      TRUE ~ NA_real_
+    )
+  ) %>%
   mutate(
     COVID = case_when(
-      CVDTESTRSLT == 2 ~ 1,  #yes, had COVID
-      CVDTESTRSLT == 1 ~ 0,  #no, did not have COVID
-      CVDTESTRSLT %in% c(0, 3, 7, 8, 9) ~ NA_real_,  #NIU, did not receive results, unknowns, and NA are NA
-      TRUE ~ NA_real_  #default NA for unexpected values
-    ))
+      CVDTESTRSLT == 2 ~ 1,  # had COVID
+      CVDTESTRSLT == 1 ~ 0,  # did not have COVID
+      CVDTESTRSLT %in% c(0, 3, 7, 8, 9) ~ NA_real_,
+      TRUE ~ NA_real_
+    )
+  )
   
 ```
 
@@ -101,7 +116,7 @@ After completed EDA, there's significant missingness in the data. At the recomme
 ```{r}
 # First, let's set up the imputation
 # Create a subset of variables for imputation
-data1 <- labelled::remove_val_labels(data_original) #removes labels from haven package which cause problems
+
 imputation_vars <- c("AGE", "PA18AERSTR", "HRSLEEP", "DEPFREQ", 
                      "PHQSLEEP", "CMPSUPPORT", "CVDTESTRSLT", 
                      "STRATA", "PSU", "SAMPWEIGHT")
@@ -151,7 +166,7 @@ create_binary_vars <- function(df) {
   df$EXERCISE <- ifelse(df$PA18AERSTR %in% c(2, 3, 4), 1,
                         ifelse(is.na(df$PA18AERSTR), NA, 0))
   
-  # SLEEP
+   # SLEEP
   df$SLEEP <- NA_real_
   df$SLEEP[which(df$AGE < 1)] <- ifelse(df$HRSLEEP[which(df$AGE < 1)] >= 12 &
                                           df$HRSLEEP[which(df$AGE < 1)] <= 16, 1, 0)
@@ -163,6 +178,8 @@ create_binary_vars <- function(df) {
                                                         df$HRSLEEP[which(df$AGE >= 6 & df$AGE < 13)] <= 12, 1, 0)
   df$SLEEP[which(df$AGE >= 13 & df$AGE <= 18)] <- ifelse(df$HRSLEEP[which(df$AGE >= 13 & df$AGE <= 18)] >= 8 &
                                                            df$HRSLEEP[which(df$AGE >= 13 & df$AGE <= 18)] <= 10, 1, 0)
+  df$SLEEP[which(df$AGE > 18)] <- ifelse(df$HRSLEEP[which(df$AGE > 18)] >= 7 &
+                                           df$HRSLEEP[which(df$AGE > 18)] <= 9, 1, 0)
   
   # DEPRESSED
   df$DEPRESSED <- NA_real_

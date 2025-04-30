@@ -9,7 +9,7 @@ library(gt)
 library(webshot2)
 library(survey)
 library(mice)
-library(CreateTableOne)
+library(tableone)
 library(here)
 ```
 

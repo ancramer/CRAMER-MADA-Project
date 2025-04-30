@@ -13,6 +13,11 @@ library(miceadds)
 library(tidymodels)
 library(caret)
 library(gt)
+library(pROC)
+library(ranger)
+library(glmnet)
+library(Metrics)
+library(purrr)
 library(here)
 ```
 
@@ -310,63 +315,71 @@ gtsave(table2, here("results", "figures", "single_model_table.png"))
 ################################################################################
 This is the part of the project in which I demonstrate complex techniques learned during this class.
 
-Next, we will make the multivariate model. I will use cross validation for this. The RMSE is found to be 0.4450602.
+Next, we will make the multivariate model. I will use cross validation for this. The pooled AUC across imputations is found to be 0.5230.
 ```{r}
+# Define the AUC cross-validation function for imputed datasets
+cross_validation_imputed_auc <- function(imputed_data, predictors, k_folds = 5) {
+  auc_list <- numeric(length(imputed_data))  # Store AUC for each imputation
 
-cross_validation_imputed_rmse <- function(imputed_data, design, predictors, k_folds = 5) {
-  rmse_list <- numeric(length(imputed_data))  # Store RMSE for each imputation
-  
   for (i in 1:length(imputed_data)) {
     data <- imputed_data[[i]]
+    
+    # drop rows with missing values in COVID, predictors, or SAMPWEIGHT
+    data <- data %>% drop_na(all_of(c("COVID", predictors, "SAMPWEIGHT")))
+    
     set.seed(123)
     folds <- sample(1:k_folds, size = nrow(data), replace = TRUE)
     
-    fold_rmse <- numeric(k_folds)  # RMSE for each fold
+    fold_auc <- numeric(k_folds)  # AUC for each fold
     
     for (fold in 1:k_folds) {
       train_data <- data[folds != fold, ]
       test_data  <- data[folds == fold, ]
       
-      # Survey design for training and testing
-      train_design <- svydesign(ids = ~1, data = train_data, weights = ~SAMPWEIGHT)
+      # Fit random forest model on training data
       formula <- as.formula(paste("COVID ~", paste(predictors, collapse = " + ")))
-      model <- svyglm(formula, design = train_design, family = quasibinomial())
+      rf_model <- ranger(
+        formula = formula,
+        data = train_data,
+        case.weights = train_data$SAMPWEIGHT,
+        probability = TRUE
+      )
       
-      # Predictions
-      predictions <- predict(model, newdata = test_data, type = "response")
+      # Predict probabilities for class 1 (COVID = 1)
+      pred_probs <- predict(rf_model, data = test_data)$predictions[, 2]
       actual <- test_data$COVID
       
-      # Compute RMSE for this fold
-      fold_rmse[fold] <- sqrt(mean((predictions - actual)^2, na.rm = TRUE))
+      # Compute AUC for this fold
+      auc_result <- roc(actual, pred_probs)$auc
+      fold_auc[fold] <- auc_result
     }
     
-    # Average RMSE over folds for this imputed dataset
-    rmse_list[i] <- mean(fold_rmse)
+    # Average AUC over folds for this imputed dataset
+    auc_list[i] <- mean(fold_auc)
   }
   
-  # Average RMSE over all imputed datasets
-  overall_rmse <- mean(rmse_list)
+  # Average AUC over all imputed datasets
+  overall_auc <- mean(auc_list)
   
-  return(list(rmse_per_imputation = rmse_list, overall_rmse = overall_rmse))
+  return(list(auc_per_imputation = auc_list, overall_auc = overall_auc))
 }
 
 # Assuming you have your imputed_data and a vector of predictors
-results <- cross_validation_imputed_rmse(imputed_data = data_imputed,
-                                         design = NULL,  # Not used inside, can be omitted
-                                         predictors = c("AGE", "SLEEP", "DEPRESSED"))
+results <- cross_validation_imputed_auc(imputed_data = data_imputed,
+                                        predictors = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL"))
 
 # View results
-results$rmse_per_imputation  # RMSE for each imputed dataset
-results$overall_rmse         # Average RMSE across imputations
+results$auc_per_imputation  # AUC for each imputed dataset
+results$overall_auc         # Average AUC across imputations
 ```
 
-Now, we will make a LASSO regression model. For this, I'm not going to use the multiple imputation dataset. I'm just going to pick a sinlge imputed dataset, the first one. The RMSE is 0.276. 
+Now, we will make a LASSO regression model. For this, I'm going to use the multiple imputation dataset with cross validation with 5 folds. Instead of using complex survey design, I will weight the model by sampleweight. The pooled AUC is  0.529. 
 
 ```{r}
 # Extract the first completed imputed dataset
-data1 <- data_imputed[[1]]  # You can loop over 1:5 later
+data1 <- data_imputed[[1]]
 
-# Then define the survey design
+# Define the survey design
 survey_design <- svydesign(
   ids = ~PSU,
   strata = ~STRATA,
@@ -375,18 +388,17 @@ survey_design <- svydesign(
   nest=TRUE
 )
 
-
 set.seed(1234)  # for reproducibility
 
-# Choose your outcome and predictors
-outcome_var <- "DEPRESSED"
+# Choose outcome and predictors
+outcome_var <- "COVID"
 predictor_vars <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL")
 
-# Loop over imputations and compute RMSE
-rmse_list <- map(data_imputed, function(dat) {
+# Loop over imputations and compute AUC
+auc_list <- map(data_imputed, function(dat) {
   # Drop missing in predictors or outcome if any slipped through
   dat <- dat %>% drop_na(all_of(c(outcome_var, predictor_vars, "SAMPWEIGHT")))
-  
+
   # Create design matrix X and response y
   X <- model.matrix(as.formula(paste(outcome_var, "~", paste(predictor_vars, collapse = "+"))), dat)[, -1]
   y <- dat[[outcome_var]]
@@ -404,806 +416,115 @@ rmse_list <- map(data_imputed, function(dat) {
   y_test <- y[test_idx]
   w_test <- w[test_idx]
 
-  # Fit weighted lasso model
-  cv_fit <- cv.glmnet(
-    x = X_train,
-    y = y_train,
-    alpha = 1,
-    weights = w_train,
-    family = "binomial",  # change to "binomial" for binary outcome
-    nfolds = 5
+  # Fit random forest model (instead of lasso, because it's a classification problem)
+  rf_model <- ranger(
+    formula = as.formula(paste(outcome_var, "~", paste(predictor_vars, collapse = "+"))),
+    data = dat[train_idx, ],
+    case.weights = w_train,
+    probability = TRUE
   )
 
-  # Predict on test set
-  preds <- predict(cv_fit, newx = X_test, s = "lambda.min")
+  # Predict probabilities for class 1
+  pred_probs <- predict(rf_model, data = dat[test_idx, ])$predictions[,2]
 
-  # Weighted RMSE
-  sqrt(weighted.mean((y_test - preds)^2, w_test))
+  # Compute AUC
+  auc_result <- roc(y_test, pred_probs)$auc
+  return(auc_result)
 })
 
-# Pool RMSE across imputations
-pooled_rmse <- mean(unlist(rmse_list))
+# Pool AUC across imputations
+mean_auc <- mean(unlist(auc_list))
 
 # Output
-cat("RMSE for each imputation:\n")
-print(unlist(rmse_list))
-cat("\nPooled RMSE across imputations:", round(pooled_rmse, 3), "\n")
-
+cat("AUC for each imputation:\n")
+print(unlist(auc_list))
+cat("\nPooled AUC across imputations:", round(mean_auc, 3), "\n")
 ```
 
+Finally, we will construct a random forest model. For this, I will not use the multiple imputation dataset, as before, I will use the first imputed dataset, with cross validation 5 folds. The pooled AUC is 0.556.
 
-
-
-
-
-
-
-
-################################################################################
-The following code was used prior to development of imputed data and is no longer relevant. It may be ignored. I am keeping it in case it serves as a useful reference for the rest of the project or future endeavors.
-################################################################################
-
-We create estimates and CIs using complex survey design variables
 ```{r}
-#list variables
-varstable1 = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", 
-             "SOCIAL", "COVID")
+library(ranger)
+library(caret)
+library(pROC)
+library(dplyr)
 
-#list categories
-cat_vartab1 = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", 
-             "SOCIAL", "COVID")
+set.seed(1234)
+k <- 5
+auc_list <- numeric(length(data_imputed))
 
-survey = svydesign(
-  ids = ~PSU, 
-  strata = ~STRATA, 
-  weights = ~SAMPWEIGHT, 
-  nest = TRUE, 
-  data = data)
+for (i in seq_along(data_imputed)) {
+  data1 <- data_imputed[[i]]
 
-exercise <- svyby(~as.factor(EXERCISE), ~COVID, survey, svymean, vartype = "ci", na.rm = TRUE)
-sleep <- svyby(~as.factor(SLEEP), ~COVID, survey, svymean, vartype = "ci", na.rm = TRUE)
-depressed <- svyby(~as.factor(DEPRESSED), ~COVID, survey, svymean, vartype = "ci", na.rm = TRUE)
-trouble_sleeping <- svyby(~as.factor(TROUBLE_SLEEPING), ~COVID, survey, svymean, vartype = "ci", na.rm = TRUE)
-social <- svyby(~as.factor(SOCIAL), ~COVID, survey, svymean, vartype = "ci", na.rm = TRUE)
-str(exercise)
-```
+  # Remove missing outcome
+  data1_complete <- data1 %>% filter(!is.na(COVID))
 
-Let's rearrange these exercise numbers into a table. I used ChatGPT and Claude to help with making the table. 
-```{r}
-# Convert the svyby object to a data frame (if not already)
-exercise_df <- as.data.frame(exercise)
+  # Make sure outcome is binary (0/1)
+  data1_complete$COVID <- as.numeric(data1_complete$COVID)
 
-# Clean up column names to make them more readable
-colnames(exercise_df) <- c("COVID", "EXERCISE_0", "EXERCISE_1", "CI_L_EXERCISE_0", "CI_L_EXERCISE_1", "CI_U_EXERCISE_0", "CI_U_EXERCISE_1")
+  # Add weights column if not present
+  data1_complete$weights <- data1_complete$SAMPWEIGHT
 
-# Use a different approach to reshape the data
-exercise_long <- exercise_df %>%
-  # First, let's gather all columns except COVID
-  pivot_longer(
-    cols = -COVID,
-    names_to = "variable",
-    values_to = "value"
-  ) %>%
-  # Now separate the variable column into type and exercise level
-  mutate(
-    Type = case_when(
-      grepl("^EXERCISE", variable) ~ "Mean",
-      grepl("^CI_L", variable) ~ "L",
-      grepl("^CI_U", variable) ~ "U"
-    ),
-    Exercise = case_when(
-      grepl("_0$", variable) ~ "0",
-      grepl("_1$", variable) ~ "1"
+  # Create folds
+  folds <- createFolds(data1_complete$COVID, k = k, list = TRUE, returnTrain = FALSE)
+
+  auc_folds <- numeric(k)
+
+  for (fold_idx in seq_along(folds)) {
+    test_idx <- folds[[fold_idx]]
+    train_idx <- setdiff(seq_len(nrow(data1_complete)), test_idx)
+
+    train_data <- data1_complete[train_idx, ]
+    test_data  <- data1_complete[test_idx, ]
+
+    # Fit random forest classifier
+    rf_model <- ranger(
+      formula = COVID ~ EXERCISE + SLEEP + DEPRESSED + TROUBLE_SLEEPING + SOCIAL, #formula
+      data = train_data,
+      case.weights = train_data$weights,
+      probability = TRUE
     )
-  ) %>%
-  # Now pivot wider to get the structure we want
-  pivot_wider(
-    id_cols = c(COVID, Exercise),
-    names_from = Type,
-    values_from = value
-  )
 
-# Combine the CI values into a single column
-exercise_with_ci <- exercise_long %>%
-  mutate(
-    CI = paste0("(", round(L, 2), ", ", round(U, 2), ")")
-  ) %>%
-  select(COVID, Exercise, Mean, CI)
+    # Predict probabilities for class 1
+    pred_probs <- predict(rf_model, data = test_data)$predictions[,2]
 
-# Now create the final table format
-exercise_final <- exercise_with_ci %>%
-  # Convert COVID to character to ensure it works as a column header
-  mutate(COVID = as.character(COVID)) %>%
-  # Pivot to get COVID status as columns
-  pivot_wider(
-    id_cols = Exercise,
-    names_from = COVID,
-    values_from = c("Mean", "CI"),
-    names_glue = "{.value}_{COVID}"
-  )
+    # Compute AUC
+    auc_folds[fold_idx] <- roc(test_data$COVID, pred_probs, quiet = TRUE)$auc
+  }
 
-# Create the table using gt
-exercise_table <- exercise_final %>%
+  # Store average AUC for this imputation
+  auc_list[i] <- mean(auc_folds)
+}
+
+# Pool AUC across imputations
+mean_auc <- mean(auc_list)
+print(paste("Pooled AUC across imputations:", round(mean_auc, 3)))
+```
+
+Let's put these into a nice table for the manuscript. 
+```{r}
+# Create a data frame with the results
+auc_table <- data.frame(
+  Model = c("Multivariate", "Lasso", "Random Forest"),
+  AUC = c(0.523, 0.529, 0.556)
+)
+
+# Create and style the GT table
+model_table <- auc_table %>%
   gt() %>%
   tab_header(
-    title = "Exercise Data by COVID Status"
+    title = "Model Performance Comparison",
   ) %>%
-  cols_label(
-    Exercise = "Exercise Level",
-    Mean_0 = "Mean",
-    Mean_1 = "Mean",
-    CI_0 = "95% CI",
-    CI_1 = "95% CI"
-  ) %>%
-  tab_spanner(
-    label = "COVID Negative (0)",
-    columns = c(Mean_0, CI_0)
-  ) %>%
-  tab_spanner(
-    label = "COVID Positive (1)",
-    columns = c(Mean_1, CI_1)
-  ) %>%
-  # Add formatting for the mean values
   fmt_number(
-    columns = starts_with("Mean"),
-    decimals = 2
-  ) %>%
-  # Add some style
-  tab_style(
-    style = cell_fill(color = "#f5f5f5"),
-    locations = cells_body(rows = Exercise == "0")
-  ) %>%
-  # Add a footnote
-  tab_footnote(
-    footnote = "Exercise Level: 0 = No regular exercise, 1 = Meets requirements for regular exercise according to American Heart Association",
-    locations = cells_column_labels(columns = Exercise)
-  ) %>%
-  # Add meaningful row labels
-  text_transform(
-    locations = cells_body(columns = Exercise),
-    fn = function(x) {
-      ifelse(x == "0", "No Regular Exercise", "Regular Exercise")
-    }
+    columns = vars(AUC),
+    decimals = 3
   )
 
 # Print the table
-exercise_table
-```
-
-Next, we will add the sleep variable. I used ChatGPT for this.
-```{r}
-# Convert the svyby object to a data frame (if not already)
-sleep_df <- as.data.frame(sleep)  # Assuming 'sleep' is the dataset
-
-# Clean up column names to make them more readable
-colnames(sleep_df) <- c("COVID", "SLEEP_0", "SLEEP_1", "CI_L_SLEEP_0", "CI_L_SLEEP_1", "CI_U_SLEEP_0", "CI_U_SLEEP_1")
-
-# Use a different approach to reshape the data
-sleep_long <- sleep_df %>%
-  # First, let's gather all columns except COVID
-  pivot_longer(
-    cols = -COVID,
-    names_to = "variable",
-    values_to = "value"
-  ) %>%
-  # Now separate the variable column into type and sleep level
-  mutate(
-    Type = case_when(
-      grepl("^SLEEP", variable) ~ "Mean",
-      grepl("^CI_L", variable) ~ "L",
-      grepl("^CI_U", variable) ~ "U"
-    ),
-    Sleep = case_when(
-      grepl("_0$", variable) ~ "0",
-      grepl("_1$", variable) ~ "1"
-    )
-  ) %>%
-  # Now pivot wider to get the structure we want
-  pivot_wider(
-    id_cols = c(COVID, Sleep),
-    names_from = Type,
-    values_from = value
-  )
-
-# Combine the CI values into a single column
-sleep_with_ci <- sleep_long %>%
-  mutate(
-    CI = paste0("(", round(L, 2), ", ", round(U, 2), ")")
-  ) %>%
-  select(COVID, Sleep, Mean, CI)
-
-# Now create the final table format
-sleep_final <- sleep_with_ci %>%
-  # Convert COVID to character to ensure it works as a column header
-  mutate(COVID = as.character(COVID)) %>%
-  # Pivot to get COVID status as columns
-  pivot_wider(
-    id_cols = Sleep,
-    names_from = COVID,
-    values_from = c("Mean", "CI"),
-    names_glue = "{.value}_{COVID}"
-  )
-
-# Create the table using gt
-sleep_table <- sleep_final %>%
-  gt() %>%
-  tab_header(
-    title = "Sleep Data by COVID Status"
-  ) %>%
-  cols_label(
-    Sleep = "Sleep Level",
-    Mean_0 = "Mean",
-    Mean_1 = "Mean",
-    CI_0 = "95% CI",
-    CI_1 = "95% CI"
-  ) %>%
-  tab_spanner(
-    label = "COVID Negative (0)",
-    columns = c(Mean_0, CI_0)
-  ) %>%
-  tab_spanner(
-    label = "COVID Positive (1)",
-    columns = c(Mean_1, CI_1)
-  ) %>%
-  # Add formatting for the mean values
-  fmt_number(
-    columns = starts_with("Mean"),
-    decimals = 2
-  ) %>%
-  # Add some style
-  tab_style(
-    style = cell_fill(color = "#f5f5f5"),
-    locations = cells_body(rows = Sleep == "0")
-  ) %>%
-  # Add a footnote
-  tab_footnote(
-    footnote = "Sleep Level: 0 = Less than recommended sleep, 1 = Met recommendations for sleep by age groups according to NIH",
-    locations = cells_column_labels(columns = Sleep)
-  ) %>%
-  # Add meaningful row labels
-  text_transform(
-    locations = cells_body(columns = Sleep),
-    fn = function(x) {
-      ifelse(x == "0", "Not enough sleep", "Enough sleep")
-    }
-  )
-
-# Print the table
-sleep_table
-
-#################################################################################
-
-# Extract the data from the gt tables
-exercise_table_df <- as.data.frame(exercise_table)
-sleep_table_df <- as.data.frame(sleep_table)
-
-# Ensure that the column names are the same across both tables
-colnames(sleep_table_df) <- colnames(exercise_table_df)
-
-# Combine the tables row by row
-combined_df <- bind_rows(exercise_table_df, sleep_table_df)
-
-# Convert the combined data frame back to a gt table
-combined_table <- combined_df %>%
-  gt() %>%
-  tab_header(
-    title = "Combined Exercise and Sleep Data by COVID Status"
-  )
-
-# Print the combined gt table
-combined_table
-```
-
-Create the same tables with depressed, trouble_sleeping, and social. This was completed in BBEdit.
-```{r}
-#########################################################################################
-# depressed variable
-
-# Convert the svyby object to a data frame (if not already)
-depressed_df <- as.data.frame(depressed)
-
-# Clean up column names to make them more readable
-colnames(depressed_df) <- c("COVID", "depressed_0", "depressed_1", "CI_L_depressed_0", "CI_L_depressed_1", "CI_U_depressed_0", "CI_U_depressed_1")
-
-# Use a different approach to reshape the data
-depressed_long <- depressed_df %>%
-  # First, let's gather all columns except COVID
-  pivot_longer(
-    cols = -COVID,
-    names_to = "variable",
-    values_to = "value"
-  ) %>%
-  # Now separate the variable column into type and depressed level
-  mutate(
-    Type = case_when(
-      grepl("^depressed", variable) ~ "Mean",
-      grepl("^CI_L", variable) ~ "L",
-      grepl("^CI_U", variable) ~ "U"
-    ),
-    depressed = case_when(
-      grepl("_0$", variable) ~ "0",
-      grepl("_1$", variable) ~ "1"
-    )
-  ) %>%
-  # Now pivot wider to get the structure we want
-  pivot_wider(
-    id_cols = c(COVID, depressed),
-    names_from = Type,
-    values_from = value
-  )
-
-# Combine the CI values into a single column
-depressed_with_ci <- depressed_long %>%
-  mutate(
-    CI = paste0("(", round(L, 2), ", ", round(U, 2), ")")
-  ) %>%
-  select(COVID, depressed, Mean, CI)
-
-# Now create the final table format
-depressed_final <- depressed_with_ci %>%
-  # Convert COVID to character to ensure it works as a column header
-  mutate(COVID = as.character(COVID)) %>%
-  # Pivot to get COVID status as columns
-  pivot_wider(
-    id_cols = depressed,
-    names_from = COVID,
-    values_from = c("Mean", "CI"),
-    names_glue = "{.value}_{COVID}"
-  )
-
-# Create the table using gt
-depressed_table <- depressed_final %>%
-  gt() %>%
-  tab_header(
-    title = "depressed Data by COVID Status"
-  ) %>%
-  cols_label(
-    depressed = "depressed Level",
-    Mean_0 = "Mean",
-    Mean_1 = "Mean",
-    CI_0 = "95% CI",
-    CI_1 = "95% CI"
-  ) %>%
-  tab_spanner(
-    label = "COVID Negative (0)",
-    columns = c(Mean_0, CI_0)
-  ) %>%
-  tab_spanner(
-    label = "COVID Positive (1)",
-    columns = c(Mean_1, CI_1)
-  ) %>%
-  # Add formatting for the mean values
-  fmt_number(
-    columns = starts_with("Mean"),
-    decimals = 2
-  ) %>%
-  # Add some style
-  tab_style(
-    style = cell_fill(color = "#f5f5f5"),
-    locations = cells_body(rows = depressed == "0")
-  ) %>%
-  # Add a footnote
-  tab_footnote(
-    footnote = "Depressed level: 0 = Feeling depressed less than weekly, 1 = Feeling depressed weekly or more",
-    locations = cells_column_labels(columns = depressed)
-  ) %>%
-  # Add meaningful row labels
-  text_transform(
-    locations = cells_body(columns = depressed),
-    fn = function(x) {
-      ifelse(x == "0", "Not regularly depressed", "Frequent depressed feeling")
-    }
-  )
-
-# Print the table
-depressed_table
-
-#########################################################################################
-# trouble_sleeping variable
-
-# Convert the svyby object to a data frame (if not already)
-trouble_sleeping_df <- as.data.frame(trouble_sleeping)
-
-# Clean up column names to make them more readable
-colnames(trouble_sleeping_df) <- c("COVID", "trouble_sleeping_0", "trouble_sleeping_1", "CI_L_trouble_sleeping_0", "CI_L_trouble_sleeping_1", "CI_U_trouble_sleeping_0", "CI_U_trouble_sleeping_1")
-
-# Use a different approach to reshape the data
-trouble_sleeping_long <- trouble_sleeping_df %>%
-  # First, let's gather all columns except COVID
-  pivot_longer(
-    cols = -COVID,
-    names_to = "variable",
-    values_to = "value"
-  ) %>%
-  # Now separate the variable column into type and trouble_sleeping level
-  mutate(
-    Type = case_when(
-      grepl("^trouble_sleeping", variable) ~ "Mean",
-      grepl("^CI_L", variable) ~ "L",
-      grepl("^CI_U", variable) ~ "U"
-    ),
-    trouble_sleeping = case_when(
-      grepl("_0$", variable) ~ "0",
-      grepl("_1$", variable) ~ "1"
-    )
-  ) %>%
-  # Now pivot wider to get the structure we want
-  pivot_wider(
-    id_cols = c(COVID, trouble_sleeping),
-    names_from = Type,
-    values_from = value
-  )
-
-# Combine the CI values into a single column
-trouble_sleeping_with_ci <- trouble_sleeping_long %>%
-  mutate(
-    CI = paste0("(", round(L, 2), ", ", round(U, 2), ")")
-  ) %>%
-  select(COVID, trouble_sleeping, Mean, CI)
-
-# Now create the final table format
-trouble_sleeping_final <- trouble_sleeping_with_ci %>%
-  # Convert COVID to character to ensure it works as a column header
-  mutate(COVID = as.character(COVID)) %>%
-  # Pivot to get COVID status as columns
-  pivot_wider(
-    id_cols = trouble_sleeping,
-    names_from = COVID,
-    values_from = c("Mean", "CI"),
-    names_glue = "{.value}_{COVID}"
-  )
-
-# Create the table using gt
-trouble_sleeping_table <- trouble_sleeping_final %>%
-  gt() %>%
-  tab_header(
-    title = "trouble_sleeping Data by COVID Status"
-  ) %>%
-  cols_label(
-    trouble_sleeping = "trouble_sleeping Level",
-    Mean_0 = "Mean",
-    Mean_1 = "Mean",
-    CI_0 = "95% CI",
-    CI_1 = "95% CI"
-  ) %>%
-  tab_spanner(
-    label = "COVID Negative (0)",
-    columns = c(Mean_0, CI_0)
-  ) %>%
-  tab_spanner(
-    label = "COVID Positive (1)",
-    columns = c(Mean_1, CI_1)
-  ) %>%
-  # Add formatting for the mean values
-  fmt_number(
-    columns = starts_with("Mean"),
-    decimals = 2
-  ) %>%
-  # Add some style
-  tab_style(
-    style = cell_fill(color = "#f5f5f5"),
-    locations = cells_body(rows = trouble_sleeping == "0")
-  ) %>%
-  # Add a footnote
-  tab_footnote(
-    footnote = "trouble_sleeping level: 0 = No trouble sleeping, 1 = Reported trouble sleeping",
-    locations = cells_column_labels(columns = trouble_sleeping)
-  ) %>%
-  # Add meaningful row labels
-  text_transform(
-    locations = cells_body(columns = trouble_sleeping),
-    fn = function(x) {
-      ifelse(x == "0", "No reported trouble sleeping", "Regular trouble sleeping")
-    }
-  )
-
-# Print the table
-trouble_sleeping_table
-
-#########################################################################################
-# social variable
-
-# Convert the svyby object to a data frame (if not already)
-social_df <- as.data.frame(social)
-
-# Clean up column names to make them more readable
-colnames(social_df) <- c("COVID", "social_0", "social_1", "CI_L_social_0", "CI_L_social_1", "CI_U_social_0", "CI_U_social_1")
-
-# Use a different approach to reshape the data
-social_long <- social_df %>%
-  # First, let's gather all columns except COVID
-  pivot_longer(
-    cols = -COVID,
-    names_to = "variable",
-    values_to = "value"
-  ) %>%
-  # Now separate the variable column into type and social level
-  mutate(
-    Type = case_when(
-      grepl("^social", variable) ~ "Mean",
-      grepl("^CI_L", variable) ~ "L",
-      grepl("^CI_U", variable) ~ "U"
-    ),
-    social = case_when(
-      grepl("_0$", variable) ~ "0",
-      grepl("_1$", variable) ~ "1"
-    )
-  ) %>%
-  # Now pivot wider to get the structure we want
-  pivot_wider(
-    id_cols = c(COVID, social),
-    names_from = Type,
-    values_from = value
-  )
-
-# Combine the CI values into a single column
-social_with_ci <- social_long %>%
-  mutate(
-    CI = paste0("(", round(L, 2), ", ", round(U, 2), ")")
-  ) %>%
-  select(COVID, social, Mean, CI)
-
-# Now create the final table format
-social_final <- social_with_ci %>%
-  # Convert COVID to character to ensure it works as a column header
-  mutate(COVID = as.character(COVID)) %>%
-  # Pivot to get COVID status as columns
-  pivot_wider(
-    id_cols = social,
-    names_from = COVID,
-    values_from = c("Mean", "CI"),
-    names_glue = "{.value}_{COVID}"
-  )
-
-# Create the table using gt
-social_table <- social_final %>%
-  gt() %>%
-  tab_header(
-    title = "social Data by COVID Status"
-  ) %>%
-  cols_label(
-    social = "social Level",
-    Mean_0 = "Mean",
-    Mean_1 = "Mean",
-    CI_0 = "95% CI",
-    CI_1 = "95% CI"
-  ) %>%
-  tab_spanner(
-    label = "COVID Negative (0)",
-    columns = c(Mean_0, CI_0)
-  ) %>%
-  tab_spanner(
-    label = "COVID Positive (1)",
-    columns = c(Mean_1, CI_1)
-  ) %>%
-  # Add formatting for the mean values
-  fmt_number(
-    columns = starts_with("Mean"),
-    decimals = 2
-  ) %>%
-  # Add some style
-  tab_style(
-    style = cell_fill(color = "#f5f5f5"),
-    locations = cells_body(rows = social == "0")
-  ) %>%
-  # Add a footnote
-  tab_footnote(
-    footnote = "social Level: 0 = Regular social support, 1 = Less social support",
-    locations = cells_column_labels(columns = social)
-  ) %>%
-  # Add meaningful row labels
-  text_transform(
-    locations = cells_body(columns = social),
-    fn = function(x) {
-      ifelse(x == "0", "Regular social support", "Less social support")
-    }
-  )
-
-# Print the table
-social_table
-
-
-
-```
-
-Now, we will create the combined table of exercise, sleep, depressed, trouble_sleeping, and social. ChatGPT helped with many tweaks.
-```{r}
-# Extract the data from the other gt tables
-depressed_table_df <- as.data.frame(depressed_table)
-trouble_sleeping_table_df <- as.data.frame(trouble_sleeping_table)
-social_table_df <- as.data.frame(social_table)
-
-# Ensure the column names match across all tables
-colnames(depressed_table_df) <- colnames(combined_df)
-colnames(trouble_sleeping_table_df) <- colnames(combined_df)
-colnames(social_table_df) <- colnames(combined_df)
-
-# Combine all the tables row by row
-combined_all_df <- bind_rows(combined_df, depressed_table_df, trouble_sleeping_table_df, social_table_df)
-
-# Add a row_id column to the data frame
-combined_all_df <- combined_all_df %>%
-  mutate(row_id = row_number())
-
-# Convert the combined data frame back to a gt table
-combined_all_table <- combined_all_df %>%
-  gt() %>%
-  tab_header(
-    title = "Mental Health Factors by SARS-CoV-2 Test Status"
-  ) %>%
-  # Spanners for COVID Negative and COVID Positive
-  tab_spanner(
-    label = "Never has tested positive for Covid",
-    columns = starts_with("Estimate") | starts_with("CI 95%")
-  ) %>%
-  tab_spanner(
-    label = "Has tested positive for Covid",
-    columns = starts_with("Estimate") | starts_with("CI 95%")
-  ) %>%
-  # Remove the word 'Exercise' from the first row
-  cols_label(
-    Exercise = ""  # This removes the "Exercise" label
-  ) %>%
-  # Format the mean values
-  fmt_number(
-    columns = starts_with("Mean"),
-    decimals = 2
-  ) %>%
-  # Add a footnote
-  tab_footnote(
-    footnote = "Exercise requirements determined according to American Heart Association. Sleep levels determined by NIH recommendations by age group.",
-    locations = cells_column_labels(columns = Exercise)
-  ) %>%
-  # Add alternating row colors using row_id
-  tab_style(
-    style = cell_fill(color = "#f5f5f5"),  # Gray color for odd rows
-    locations = cells_body(rows = row_id %% 2 == 1)  # Apply to odd rows
-  ) %>%
-  tab_style(
-    style = cell_fill(color = "white"),  # White color for even rows
-    locations = cells_body(rows = row_id %% 2 == 0)  # Apply to even rows
-  ) %>%
-  # Add solid vertical line between row names and Mean_0 columns
-  tab_style(
-    style = cell_borders(
-      sides = c("left"),
-      color = "grey",
-      weight = px(1)
-    ),
-    locations = cells_body(
-      columns = starts_with("Mean_0")
-    )
-  ) %>%
-  # Add solid vertical line between COVID Negative and COVID Positive columns
-  tab_style(
-    style = cell_borders(
-      sides = c("left"),
-      color = "grey",
-      weight = px(1)
-    ),
-    locations = cells_body(
-      columns = starts_with("Mean_1")
-    )
-  ) %>%
-  # Hide the row_id column
-  cols_hide(columns = "row_id")
-
-# Print the combined gt table
-combined_all_table
-
-#footnote:
-#"Exercise requirements determined according to American Heart Association. Sleep levels determined by NIH recommendations by age group."
+model_table
 
 # Save the table as a PNG
 here()
-gtsave(combined_all_table, here("results", "figures", "result_table1.png"))
-```
-
-
-################################################################################
-
-Up next, we will run the singleton models. For these, our outcome variable (covid test result) will be used as a variable for each of the respective predictor vairbales that we created in the processing code. These models appear as the following:
-
-$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Exercise} $$
-$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Sleep} $$
-$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Depressed} $$
-$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{TroubleSleeping} $$
-$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Social} $$
-Create survey design.
-```{r}
-#review names to use below
-names(data)
-
-#create survey object using design variables
-survey_design <- svydesign(
-  ids = ~PSU,
-  strata = ~STRATA,
-  weights = ~SAMPWEIGHT,
-  data = data,
-  nest = TRUE
-)
-
-pr_results <- data.frame()
-
-variables <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", 
-               "SOCIAL")
-
-for (var in variables) {
-  # Create the formula dynamically
-  formula <- as.formula(paste("COVID ~", var))
-  
-  # Fit the model
-  model <- svyglm(
-    formula, 
-    design = survey_design, 
-    family = quasibinomial(link = "log")
-  )
-  
-  # Extract prevalence ratios and confidence intervals
-  pr <- exp(coef(model))  # Prevalence ratios
-  pr_ci <- exp(confint(model))  # Confidence intervals
-  
-  # Extract p-values
-  p_values <- summary(model)$coefficients[, "Pr(>|t|)"]
-  
-  # Combine results into a single table
-  pr_results <- rbind(
-    pr_results,
-    data.frame(
-      Variable = var,
-      Estimate = pr[-1],  # Skip the intercept
-      `2.5% CI` = pr_ci[-1, 1],
-      `97.5% CI` = pr_ci[-1, 2],
-      `p-value` = p_values[-1]  # Skip the intercept
-    )
-  )
-}
-
-# Print the results
-print(pr_results)
-
-```
-
-Now, we will make that into a nice quality table using the gt package and the help of chatGPT and Claude.
-```{r}
-#checking
-glimpse(pr_results)
-str(pr_results)
-
-#create the gt table
-pr_results %>%
-  mutate(
-    Predictor = stringr::str_to_title(gsub("_", " ", Variable)),
-    `Prevalence Ratio` = round(Estimate, 2),
-    `95% CI` = paste0("(", round(X2.5..CI, 2), ", ", round(X97.5..CI, 2), ")"),
-    `p-value` = format.pval(p.value, digits = 3, eps = .001)
-  ) %>%
-  select(Predictor, `Prevalence Ratio`, `95% CI`, `p-value`) %>%
-  gt() %>%
-  tab_header(
-    title = md("**Positive COVID Test Result Association with Mental Health Factors**")
-  ) %>%
-  tab_options(
-    column_labels.border.bottom.width = px(1.5),  # Bold line under column headers
-    column_labels.border.bottom.color = "black"
-  )
-
-```
-
-Now, we're going to complete the process of model selection, using backwards selection. We want to end up with a model we can use for prediction purposes. Our initial model looks like this: 
-$$ Y_{CovidPositive} = \beta_0 + \beta_1 \cdot X_{Exercise} + \beta_2 \cdot X_{Sleep} + \beta_3 \cdot X_{Depressed} + \beta_4 \cdot X_{TroubleSleeping} + \beta_5 \cdot X_{Social} $$
-Let's find the AIC value. 
-```{r}
-
-unique(data$COVID)
-model_full <- svyglm(
-  COVID ~ EXERCISE + SLEEP + DEPRESSED + TROUBLE_SLEEPING + SOCIAL,
-  design = survey_design,
-  family = quasibinomial(link = "log")
-)
-# Perform backward selection based on AIC
-model_step <- step(model_full, direction = "backward", trace = 1)
-summary(model_step)
-
+gtsave(model_table, here("results", "figures", "model_table.png"))
 ```
 
