@@ -82,7 +82,7 @@ Factors studied include:
 2.) Self-reported depressed mood, 
 3.) Self-reported trouble sleeping, 
 4.) Self-reported average weekly exercise, and
- 5.) Self-reported changes to social and emotional support.
+5.) Self-reported changes to social and emotional support.
 
 
 {{< pagebreak >}}
@@ -145,7 +145,7 @@ knitr::include_graphics(here("results","figures", "summary_table_with_nas.png"))
 
 ## Exploratory/Descriptive analysis
 
-Complex survey design was used to allow for generalizability of results, using variables PSU, STRATA, and SAMPWEIGHT. A summary table was generated to find occurence of each of the factors and their inverses among the data. Next, single models were ran to find associations between each variable with covid test postivity. To explore the data further, a multivariate model, LASSO regression, and a third advanced model (replace this) were ran with cross validation. 
+To examine prevelance of mental health factors among the United States population, compmlex survey design was used to allow for generalizability of results, specifically, variables PSU, STRATA, and SAMPWEIGHT. A summary table was generated to find occurence of each of the factors and their inverses among the data, seen below.
 
 ```{r}
 #| label: fig-1
@@ -159,6 +159,8 @@ knitr::include_graphics(here("results","figures", "table1_imputed.png"))
 
 ## Basic statistical analysis
 
+Next, single models were ran to find associations between each variable with covid test postivity. Complex survey design was used to allow generalizability of results to the United States population.
+
 ```{r}
 #| label: tbl-summarytable
 #| tbl-cap: "Single model table"
@@ -169,6 +171,8 @@ knitr::include_graphics(here("results","figures", "single_model_table.png"))
 
 
 ## Full analysis
+
+To explore the data further, a multivariate model, LASSO regression, and a third advanced model (replace this) were ran with cross validation. 
 
 
 
