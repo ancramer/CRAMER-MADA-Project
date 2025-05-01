@@ -172,7 +172,7 @@ knitr::include_graphics(here("results","figures", "single_model_table.png"))
 
 ## Full analysis
 
-To explore the data further, a multivariate model, LASSO regression, and a third advanced model (replace this) were ran with cross validation. 
+To explore the data further, a multivariate model, LASSO regression, and a random forest model were ran with 5 fold cross validation on imputed data.  
 
 
 
