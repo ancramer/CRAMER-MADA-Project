@@ -1,0 +1,225 @@
+---
+title: Mental Health Factors and Covid
+author: Asmith Joseph 
+date: date-modified
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+---
+
+# Overview
+
+Title of project: Mental Health Factors and Covid
+
+Name of project author(s): Annalise Cramer
+
+Name of project reviewer: Asmith Joseph 
+
+
+# Instructions
+
+Write your comments and feedback below for each section/component of the project. The goal should be to help the author improve their project. Make comments as constructive and actionable as possible. You can provide both criticism and praise.
+
+For each component, pick one summary statement by deleting the ones that do not apply and keeping only the one that you think most closely summarizes a given component. 
+
+Make sure your final document compiles/renders into a readable, well-formatted html document.
+
+Delete any sections/text of this template that are not part of your final review document. (Including these instructions.)
+
+
+# Specific project content evaluation
+Evaluate the different parts of the project by filling in the sections below.
+
+
+## Background, Context and Motivation
+How well is the context of the project described? Is a comprehensive background, including summary of previous/related work given? Is the project well placed into the context of existing work (including proper referencing of existing work). Is it clear why the project was undertaken and what new information it hopes to provide?
+
+### Feedback and Comments
+
+The introduction addresses an important and timely issue but would be stronger with a more focused narrative. 
+Some Suggestions: 
+•	Start by summarizing three to five pivotal studies that examine the direct effects of COVID-19 infection, rather than lockdown alone, on sleep quality, physical activity, mood disturbances, and social support.
+•	After reviewing these findings, highlight the remaining gap, no research has yet leveraged nationally representative NHIS data to compare mental health outcomes between adults who were infected and those who were not across multiple domains. 
+•	Support each point with concise, informative citations. Conclude with a clear gap-to-aim statement: “Although prior studies have documented the individual impacts of COVID-19 infection on sleep, exercise, mood, and social connectedness, no study to date has simultaneously evaluated these outcomes in a nationally representative cohort; this analysis will fill that void.”
+
+
+### Summary assessment (PICK ONE, DELETE THE OTHERS)
+* some contextualization and motivation
+
+
+
+## Question description
+How well and clear are the question(s)/hypotheses the project aims to address described? Is it clear how the questions relate to the data?
+
+
+### Feedback and Comments
+
+
+The questions do provide the readers a sense of the general aims; however, they lack the precision and framing of formal hypotheses, for example, a null and alternative hypothesis or clearly articulated expected direction of association. It isn’t immediately obvious how each question maps onto the NHIS data structure.
+
+I recommend rewriting this section as two or three specific aims (e.g., “Aim 1: Estimate the weighted prevalence of self-reported poor mental health among U.S. adults during 2019–2021”; “Aim 2: Test whether adults with laboratory-confirmed COVID-19 have higher odds of reporting poor mental health after adjusting for age, sex, and survey year”), and explicitly noting which NHIS variables and sample weights will be used to answer each aim. That will make the relationship between question, hypothesis, and data crystal clear.
+
+
+### Summary assessment
+* question/hypotheses somewhat explained
+
+
+
+## Data description
+How well is the data overall described? Is the source provided? Is a codebook or other meta-information available that makes it clear what the data is? 
+
+### Feedback and Comments
+
+
+The manuscript tells us you’re using a large national survey of adults during the pandemic, but the description of the data stops at “we used NHIS.” You never specify which survey years or waves, how Covid‐infection status was ascertained, which mental‐health scales were used or where readers can find their scoring rules, nor do you point to a public codebook or variable glossary.
+
+Without at least a brief “Data Source and Measures” subsection, complete with the exact dataset version, links to the NHIS codebook (or appendix file), and a table of your key variables (name, question wording, response options, handling of missing values), it’s hard for readers to know exactly what you measured or to replicate your work. 
+
+### Summary assessment
+* source and overall structure of data somewhat explained
+
+
+
+## Data wrangling and exploratory analysis
+How well is the data cleaned/processed and explored? Are all steps reasonable and well explained? Are alternatives discussed and considered? Are meaningful exploratory results shown (e.g. in the supplementary materials)?
+
+### Feedback and Comments
+
+In term of Data wrangling and exploratory analysis, only broad cleaning (dropping missing cases, recoding infection) and doesn’t detail how you screened for outliers, chose inclusion thresholds, or compared imputation methods. Exploratory analysis is likewise confined to one table, with no supplemental histograms, correlations, or group comparisons to verify variable behavior. 
+
+Some suggestions: 
+Add a “Data Cleaning & Exploration” section that (1) lists each preprocessing step and its rationale, (2) briefly discusses alternative approaches you considered (e.g., multiple imputation vs. complete case), and (3) includes key EDA visuals (histograms, correlation matrices, stratified plots) in an appendix so readers can see your data are sound.
+
+### Summary assessment
+* major weaknesses in wrangling and exploratory component
+
+
+## Appropriateness of Analysis
+Were the analysis methods appropriate for the data? Was the analysis done properly? Were different components of the analysis (e.g. performance measure, variable selection, data pre-processing, model evaluation) done in the best way possible and explained well?
+
+### Feedback and Comments
+
+
+The combination of logistic regression with interactions and a machine-learning pipeline is appropriate for linking COVID-19 infection to mental health outcomes. However, the manuscript should:
+
+•	Clarify how predictors were chosen (theory, univariate screening, or regularization).
+•	Detail data pre-processing (missing data, outliers, categorical encoding).
+•	Go beyond AUC—report sensitivity, specificity, calibration, or decision-curve analyses.
+•	Address class imbalance and threshold selection.
+
+Overall, the methods are sound but need greater transparency in variable selection, preprocessing, and a richer set of evaluation metrics.
+
+
+### Summary assessment
+* defensible but not optimal analysis 
+
+## Presentation
+How well are results presented? Are tables and figures easy to read and understand? Are the main figures/tables publication level quality? 
+
+### Feedback and Comments
+
+So far only a few tables and figures, but they are well structured. Most tables use sensible row–column layouts and include confidence intervals or p-values, and the figures effectively visualize interaction effects and subgroup trends. 
+Some suggestions
+•	Streamline dense tables: Move secondary details (e.g., extensive covariate lists or robustness checks) into supplementary material to keep primary tables focused.
+•	Standardize formatting: Use consistent fonts, decimal places, and table borders throughout.
+•	Enhance figure legends and output quality: Write concise, panel‐specific captions; produce high‐resolution graphics; and choose color palettes that remain distinguishable in black‐and‐white print and are accessible to color‐blind readers.
+
+
+### Summary assessment
+
+* results are presented ok, with room for improvement
+
+
+## Discussion/Conclusions
+Are the study findings properly discussed? Are strengths and limitations acknowledged? Are findings interpreted properly?
+
+### Feedback and Comments
+
+Since a Discussion section hasn’t been drafted yet, here are some tips to guide its structure:
+
+- Begin with a concise summary of your key findings, emphasizing, for example, that COVID-19 infection was linked to poorer sleep, mood disturbances, and reduced social support in a nationally representative sample spanning multiple mental-health domains.
+- Contextualize these results by comparing them to prior studies—highlight where you confirm or extend existing evidence—and explicitly acknowledge your study’s strengths (e.g., large, population-based data; comprehensive mental-health measures) alongside its weaknesses (e.g., cross-sectional design, self-report bias, possible residual confounding).
+- Interpret your findings through plausible mechanisms, such as inflammation-mediated neurochemical changes that may drive mood and sleep disruptions, and discuss how unmeasured factors might influence the observed associations.
+- Propose concrete next steps, like longitudinal follow-up to assess causality and incorporation of biological markers (e.g., cytokine levels) to validate mechanistic hypotheses.
+- Cite relevant literature throughout—both to support your comparisons with past work and to bolster mechanistic explanations—so readers can readily see how your results fit into and advance the field.
+
+### Summary assessment
+* major parts of discussion missing or wrong 
+
+
+## Further comments
+
+_Add any other comments regarding the different aspects of the project here. Write anything you think can help your classmate improve their project._
+
+So far you have a strong foundation, a good start. However, you still have some work to do. Keep at it. You can do it!
+Some Suggestions: 
+•	Tighten transitions between sections, explicitly introduce each table and figure in the text, and make sure your methods naturally flow into your results.
+•	Add a few descriptive plots or a correlation matrix (in supplementary material if necessary) to justify your choice of predictors and to highlight any surprising patterns before modeling.
+•	Anchor your findings in biological or psychosocial theory (e.g., inflammation-driven mood changes), acknowledge potential residual confounding, and suggest concrete next steps like longitudinal follow-up or biomarker validation.
+•	Standardize fonts, decimal places, and table borders; use concise figure legends that map directly to panels; and ensure high-resolution, accessible color palettes.
+
+
+
+
+# Overall project content evaluation
+Evaluate overall features of the project  by filling in the sections below.
+
+
+## Structure
+Is the project well structured? Are files in well labeled folders? Do files have reasonable names? Are all "junk" files not needed for analysis/reproduction removed? By just looking at files and folders, can you get an idea of how things fit together?
+
+### Feedback and Comments
+
+Yes, no issues navigating through dufferent folders
+
+### Summary assessment
+* well structured
+
+
+## Documentation 
+How well is the project documented? Are you able to understand each step of the whole analysis, each decision that was made, and each line of code? Is enough information provided as comments in code or as part of Rmd files? 
+
+### Feedback and Comments
+
+Yes, well structured so far. 
+
+### Summary assessment
+* fully and well documented
+
+
+
+## Reproducibility
+Are all results fully reproducible? Is documentation provided which clearly explains how to reproduce things, and does it work without the need for any manual intervention? Are you able to re-run the whole analysis without having to do manual interventions/edits?
+
+### Feedback and Comments
+
+No, not all the way reproducible. But I am sure once everything is completed it should be. 
+
+
+### Summary assessment
+* small parts not reproducible or required manual intervention 
+
+
+
+## Thoroughness
+How thorough was the overall study? Were alternatives (e.g. different ways of processing the data or different models) considered? Were alternatives discussed? Were the questions/hypotheses fully and thoroughly addressed?
+
+### Feedback and Comments
+
+The manuscript is not complete. There are still a lot of sections missing
+
+### Summary assessment
+* weak level of thoroughness
+
+
+
+## Further comments
+
+_Add any other comments regarding the overall project here. Write anything you think can help your classmate improve their project._
+
+
+Keep working, you got this! best of luck. 
+
+
