@@ -172,7 +172,20 @@ knitr::include_graphics(here("results","figures", "single_model_table.png"))
 
 ## Full analysis
 
-To explore the data further, a multivariate model, LASSO regression, and a random forest model were ran with 5 fold cross validation on imputed data.  
+To better understand the relationship between COVID-19 test status and mental health factors, three new models were constructed: a multivariate logistic regression model, LASSO regression, and a random forest model. Each model used the imputed data and five fold cross validation to affect predictive performance. All models accounted for sample wighting, but not clustering. Notably, survey design could not be fully accounted for due to the complexity of the LASSO and random forest models, making results not interpretable to the country-wide level, rather, predictive results are relevant within the NHIS population, which accounts for 110,216 individuals.
+
+All models included COVID-19 test status as the outcome and all mental helath variables as predictors (hours of sleep, touble sleeping, feeling depressed, meeting exercise guidelines, and amount of social support). The multivariate logistic regression was chosen for it's ease of interpretability and to serve as a baseline against the more advanced models. The LASSO model was chosen for it's ability to penalize predictors to indicate which mental health factors were most important. The random forest model was used to capture potential complex relationships between variables.
+
+To evalaute the performance of these models, the area under the curve (AUC) was calculated. This metric was chosen due to it's discrimination between binary outcome of the COVID-19 variable. Higher AUC indicates better model preformance.
+
+```{r}
+#| label: fig-aucplot
+#| fig-cap: "AUC comparison plot"
+#| echo: FALSE
+here()
+knitr::include_graphics(here("results","figures", "auc_plot.png"))
+```
+
 
 
 

@@ -13,6 +13,7 @@ library(miceadds)
 library(tidymodels)
 library(caret)
 library(gt)
+library(scales)
 library(pROC)
 library(ranger)
 library(glmnet)
@@ -315,96 +316,472 @@ gtsave(table2, here("results", "figures", "single_model_table.png"))
 ################################################################################
 This is the part of the project in which I demonstrate complex techniques learned during this class.
 
-Next, we will make the multivariate model. I will use cross validation for this. The pooled AUC across imputations is found to be 0.5230.
+Next, we will make the multivariate model. I will use cross validation for this.Pooled AUC is calculated and a observed-expected plot is generated.
 ```{r}
-# Define the AUC cross-validation function for imputed datasets
-cross_validation_imputed_auc <- function(imputed_data, predictors, k_folds = 5) {
+library(pROC)
+library(dplyr)
+
+cross_validation_imputed_auc_logit <- function(imputed_data, predictors, k_folds = 5) {
   auc_list <- numeric(length(imputed_data))  # Store AUC for each imputation
 
-  for (i in 1:length(imputed_data)) {
+  for (i in seq_along(imputed_data)) {
     data <- imputed_data[[i]]
-    
-    # drop rows with missing values in COVID, predictors, or SAMPWEIGHT
+
+    # Drop rows with missing values in outcome, predictors, or weights
     data <- data %>% drop_na(all_of(c("COVID", predictors, "SAMPWEIGHT")))
-    
+
     set.seed(123)
     folds <- sample(1:k_folds, size = nrow(data), replace = TRUE)
-    
-    fold_auc <- numeric(k_folds)  # AUC for each fold
-    
+
+    fold_auc <- numeric(k_folds)
+
     for (fold in 1:k_folds) {
       train_data <- data[folds != fold, ]
       test_data  <- data[folds == fold, ]
-      
-      # Fit random forest model on training data
+
+      # Fit logistic regression model
       formula <- as.formula(paste("COVID ~", paste(predictors, collapse = " + ")))
-      rf_model <- ranger(
+      logit_model <- glm(
         formula = formula,
         data = train_data,
-        case.weights = train_data$SAMPWEIGHT,
-        probability = TRUE
+        family = binomial(),
+        weights = SAMPWEIGHT
       )
-      
-      # Predict probabilities for class 1 (COVID = 1)
-      pred_probs <- predict(rf_model, data = test_data)$predictions[, 2]
+
+      # Predict probabilities on test data
+      pred_probs <- predict(logit_model, newdata = test_data, type = "response")
       actual <- test_data$COVID
-      
+
       # Compute AUC for this fold
       auc_result <- roc(actual, pred_probs)$auc
       fold_auc[fold] <- auc_result
     }
-    
-    # Average AUC over folds for this imputed dataset
+
     auc_list[i] <- mean(fold_auc)
   }
-  
-  # Average AUC over all imputed datasets
+
   overall_auc <- mean(auc_list)
-  
+
   return(list(auc_per_imputation = auc_list, overall_auc = overall_auc))
 }
 
-# Assuming you have your imputed_data and a vector of predictors
-results <- cross_validation_imputed_auc(imputed_data = data_imputed,
-                                        predictors = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL"))
-
-# View results
-results$auc_per_imputation  # AUC for each imputed dataset
-results$overall_auc         # Average AUC across imputations
-```
-
-Now, we will make a LASSO regression model. For this, I'm going to use the multiple imputation dataset with cross validation with 5 folds. Instead of using complex survey design, I will weight the model by sampleweight. The pooled AUC is  0.529. 
-
-```{r}
-# Extract the first completed imputed dataset
-data1 <- data_imputed[[1]]
-
-# Define the survey design
-survey_design <- svydesign(
-  ids = ~PSU,
-  strata = ~STRATA,
-  weights = ~SAMPWEIGHT,
-  data = data1,
-  nest=TRUE
+# Usage
+results_logit <- cross_validation_imputed_auc_logit(
+  imputed_data = data_imputed,
+  predictors = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL")
 )
 
-set.seed(1234)  # for reproducibility
+# View results
+results_logit$auc_per_imputation
+results_logit$overall_auc
 
-# Choose outcome and predictors
-outcome_var <- "COVID"
-predictor_vars <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL")
+# Function to compute calibration data per imputation
+get_calibration_data <- function(data, predictors, n_bins = 10) {
+  # Fit logistic regression model
+  formula <- as.formula(paste("COVID ~", paste(predictors, collapse = " + ")))
+  model <- glm(formula, data = data, family = binomial(), weights = SAMPWEIGHT)
+  
+  # Predict probabilities
+  data$predicted <- predict(model, type = "response")
+  
+  # Bin predictions into deciles
+  data <- data %>%
+    mutate(bin = ntile(predicted, n_bins)) %>%
+    group_by(bin) %>%
+    summarise(
+      mean_pred = mean(predicted),
+      obs_rate = mean(COVID),
+      .groups = "drop"
+    )
+  
+  return(data)
+}
 
-# Loop over imputations and compute AUC
-auc_list <- map(data_imputed, function(dat) {
-  # Drop missing in predictors or outcome if any slipped through
-  dat <- dat %>% drop_na(all_of(c(outcome_var, predictor_vars, "SAMPWEIGHT")))
+# Combine calibration data across imputations
+all_calib_data <- purrr::map_dfr(
+  .x = seq_along(data_imputed),
+  .f = function(i) {
+    data <- data_imputed[[i]] %>% 
+      drop_na(COVID, EXERCISE, SLEEP, DEPRESSED, TROUBLE_SLEEPING, SOCIAL, SAMPWEIGHT)
+    
+    calib <- get_calibration_data(data, predictors = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL"))
+    calib$imputation <- paste0("Imputation ", i)
+    return(calib)
+  }
+)
 
-  # Create design matrix X and response y
+# Plot calibration curves
+LogReg_plot <- ggplot(all_calib_data, aes(x = mean_pred, y = obs_rate, color = imputation)) +
+  geom_line() +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  scale_x_continuous("Expected Probability", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  scale_y_continuous("Observed Proportion", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  labs(title = "Calibration Plot: Logistic Regression (All 5 Imputations)", color = "Imputation") +
+  theme_minimal()
+
+# Save the plot using the `here` package
+ggsave(filename = here::here("results", "figures", "log_calibration_plot.png"),
+       plot = LogReg_plot,
+       width = 8, height = 6, dpi = 300)
+
+```
+
+Now, we will make a LASSO regression model. For this, I'm going to use the multiple imputation dataset with cross validation with 5 folds. Instead of using complex survey design, I will weight the model by sampleweight. Pooled AUC is calculated and a observed-expected plot is generated.
+
+```{r}
+library(glmnet)
+library(caret)
+library(Metrics)  # for rmse()
+library(dplyr)
+
+set.seed(1234)
+k <- 5
+auc_list <- c()
+
+# Loop through 5 imputed datasets
+for (i in 1:5) {
+  data1 <- data_imputed[[i]]
+
+  # Remove rows with missing outcome
+  data1_complete <- data1 %>% filter(!is.na(COVID))
+
+  # Create folds
+  folds <- createFolds(data1_complete$COVID, k = k, list = TRUE, returnTrain = FALSE)
+
+  preds <- rep(NA, nrow(data1_complete))
+
+  for (fold_idx in seq_along(folds)) {
+    test_idx <- folds[[fold_idx]]
+    train_idx <- setdiff(seq_len(nrow(data1_complete)), test_idx)
+
+    train_data <- data1_complete[train_idx, ] %>% drop_na()
+    test_data  <- data1_complete[test_idx, ] %>% drop_na()
+
+    # Create model matrix (remove outcome column)
+    x_train <- model.matrix(COVID ~ ., data = train_data)[, -1]
+    y_train <- train_data$COVID
+
+    x_test <- model.matrix(COVID ~ ., data = test_data)[, -1]
+
+    # Fit Lasso with CV
+    lasso_fit <- cv.glmnet(x = x_train, y = y_train, alpha = 1, family = "binomial")
+
+    # Predict probabilities (type = "response" for prob)
+    preds[test_idx] <- predict(lasso_fit, newx = x_test, s = "lambda.min", type = "response")
+  }
+
+  actuals <- data1_complete$COVID
+
+  # AUC using pROC
+  roc_obj <- roc(actuals, preds)
+  fold_auc <- auc(roc_obj)
+  auc_list[i] <- fold_auc
+}
+
+pooled_auc <- mean(auc_list)
+print(pooled_auc)
+
+################################################################################
+## plot expected vs observed
+
+set.seed(1234)
+k <- 5
+all_preds_df <- data.frame()
+
+for (i in 1:5) {
+  data1 <- data_imputed[[i]]
+  data1_complete <- data1 %>% filter(!is.na(COVID))
+
+  folds <- createFolds(data1_complete$COVID, k = k, list = TRUE, returnTrain = FALSE)
+
+  preds <- rep(NA, nrow(data1_complete))
+
+  for (fold_idx in seq_along(folds)) {
+    test_idx <- folds[[fold_idx]]
+    train_idx <- setdiff(seq_len(nrow(data1_complete)), test_idx)
+
+    train_data <- data1_complete[train_idx, ] %>% drop_na()
+    test_data  <- data1_complete[test_idx, ] %>% drop_na()
+
+    x_train <- model.matrix(COVID ~ ., data = train_data)[, -1]
+    y_train <- train_data$COVID
+    x_test  <- model.matrix(COVID ~ ., data = test_data)[, -1]
+
+    lasso_fit <- cv.glmnet(x = x_train, y = y_train, alpha = 1, family = "binomial")
+
+    preds[test_idx] <- predict(lasso_fit, newx = x_test, s = "lambda.min", type = "response")
+  }
+
+  all_preds_df <- bind_rows(all_preds_df, data.frame(
+    imputation = i,
+    predicted = preds,
+    observed = data1_complete$COVID
+  ))
+}
+
+# Bin predictions into 10 bins and compute calibration stats
+calib_data <- all_preds_df %>%
+  mutate(bin = ntile(predicted, 10)) %>%
+  group_by(imputation, bin) %>%
+  summarise(
+    mean_pred = mean(predicted, na.rm = TRUE),
+    obs_rate = mean(observed, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+Lasso_plot <- ggplot(calib_data, aes(x = mean_pred, y = obs_rate, color = factor(imputation))) +
+  geom_line() +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  scale_x_continuous("Expected Probability", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  scale_y_continuous("Observed Proportion", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  labs(
+    title = "Calibration Plot: Lasso Logistic Regression (All 5 Imputations)",
+    color = "Imputation"
+  ) +
+  theme_minimal()
+
+print(Lasso_plot)
+
+# Save the plot using the `here` package
+ggsave(filename = here::here("results", "figures", "lasso_calibration_plot.png"),
+       plot = Lasso_plot,
+       width = 8, height = 6, dpi = 300)
+
+################################################################################
+# Keep variable names for predictors
+formula <- as.formula("COVID ~ .")
+
+# Explicitly remove rows with any NA in predictors (even if COVID is not NA)
+train_data <- train_data %>% select(COVID, everything()) %>% drop_na()
+
+# Now get model matrix
+x_train <- model.matrix(formula, data = train_data)[, -1]
+y_train <- train_data$COVID
+
+nrow(x_train)
+length(y_train)
+```
+
+```{r}
+# Load required libraries
+library(glmnet)      # For Lasso regression
+library(pROC)        # For AUC calculation
+library(ggplot2)     # For plotting
+library(dplyr)       # For data manipulation
+library(mice)        # For working with imputed data
+library(tidyr)       # For data reshaping
+
+# --- LASSO MODEL WITH CROSS-VALIDATION ON IMPUTED DATA ---
+
+# Function to run Lasso with sample weights and calculate performance metrics
+run_lasso_cv <- function(imp_data, outcome = "COVID", 
+                        predictors = c("SLEEP", "DEPRESSED", "SOCIAL", "TROUBLE_SLEEPING", "EXERCISE"),
+                        weight_var = "sampleweight") {
+  
+  # Extract data from current imputation
+  X <- as.matrix(imp_data[, predictors])
+  y <- imp_data[[outcome]]
+  weights <- imp_data[[weight_var]]
+  
+  # Standardize predictors (important for Lasso)
+  X_scaled <- scale(X)
+  
+  # Run cross-validated Lasso with sample weights
+  set.seed(123) # For reproducibility
+  cv_model <- cv.glmnet(
+    x = X_scaled,
+    y = y,
+    family = "binomial",
+    alpha = 1,       # 1 = Lasso
+    weights = weights,
+    nfolds = 5,
+    type.measure = "auc"
+  )
+  
+  # Get the best lambda (penalty parameter)
+  best_lambda <- cv_model$lambda.min
+  
+  # Refit model with best lambda
+  final_model <- glmnet(
+    x = X_scaled,
+    y = y,
+    family = "binomial",
+    alpha = 1,
+    weights = weights,
+    lambda = best_lambda
+  )
+  
+  # Get predictions
+  pred_probs <- predict(final_model, newx = X_scaled, type = "response")
+  
+  # Calculate AUC
+  roc_obj <- roc(y, pred_probs)
+  auc_value <- auc(roc_obj)
+  
+  # Create calibration data for expected vs observed plot
+  n_groups <- 10  # Number of bins for calibration plot
+  
+  # Create calibration data
+  calib_data <- data.frame(
+    predicted = as.vector(pred_probs),
+    observed = y
+  )
+  
+  # Sort by predicted probability and divide into bins
+  calib_data <- calib_data[order(calib_data$predicted), ]
+  calib_data$bin <- cut(seq(1, nrow(calib_data)), breaks = n_groups, labels = FALSE)
+  
+  # Calculate mean predicted and observed values for each bin
+  calibration <- calib_data %>%
+    group_by(bin) %>%
+    summarize(
+      n = n(),
+      mean_predicted = mean(predicted),
+      mean_observed = mean(observed)
+    )
+  
+  # Return results
+  return(list(
+    model = final_model,
+    lambda = best_lambda,
+    auc = auc_value,
+    calibration = calibration,
+    coefs = coef(final_model)
+  ))
+}
+
+# ----------------------------
+# MAIN ANALYSIS
+# ----------------------------
+
+# Check the structure of the imputed data
+print(class(data_imputed))
+
+# Initialize results containers
+auc_values <- numeric(length = 5)
+calibration_results <- list()
+coef_results <- list()
+
+# Function to run Lasso with sample weights and calculate performance metrics
+run_lasso_cv <- function(imp_data, outcome = "COVID", 
+                        predictors = c("SLEEP", "DEPRESSED", "SOCIAL", "TROUBLE_SLEEPING", "EXERCISE"),
+                        weight_var = "sampleweight") {
+  
+  # Extract data from current imputation and handle missing values
+  # First, check for and handle missing data
+  complete_cases <- complete.cases(imp_data[, c(outcome, predictors, weight_var)])
+  if (!all(complete_cases)) {
+    message("Removing ", sum(!complete_cases), " rows with missing values")
+    imp_data <- imp_data[complete_cases, ]
+  }
+  
+  X <- as.matrix(imp_data[, predictors])
+  y <- imp_data[[outcome]]
+  weights <- imp_data[[weight_var]]
+  
+  # Standardize predictors (important for Lasso)
+  X_scaled <- scale(X)
+  
+  # Run cross-validated Lasso with sample weights
+  set.seed(123) # For reproducibility
+  cv_model <- cv.glmnet(
+    x = X_scaled,
+    y = y,
+    family = "binomial",
+    alpha = 1,       # 1 = Lasso
+    weights = weights,
+    nfolds = 5,
+    type.measure = "auc"
+  )
+  
+  # Get the best lambda (penalty parameter)
+  best_lambda <- cv_model$lambda.min
+  
+  # Refit model with best lambda
+  final_model <- glmnet(
+    x = X_scaled,
+    y = y,
+    family = "binomial",
+    alpha = 1,
+    weights = weights,
+    lambda = best_lambda
+  )
+
+# Combine calibration results from all imputations
+all_calibration <- do.call(rbind, calibration_results)
+
+# ----------------------------
+# OUTPUT RESULTS
+# ----------------------------
+
+# Print AUC values for each imputation
+cat("\nAUC values for each imputation:\n")
+print(auc_values)
+cat("\nMean AUC across imputations:", mean(auc_values), "\n")
+
+# Plot expected vs observed probabilities for all imputations
+calibration_plot <- ggplot(all_calibration, aes(x = mean_predicted, y = mean_observed, color = factor(imputation))) +
+  geom_point(size = 3) +
+  geom_line() +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  labs(
+    title = "Expected vs. Observed Probabilities",
+    subtitle = paste("Mean AUC =", round(mean(auc_values), 3)),
+    x = "Expected (Predicted Probability)",
+    y = "Observed (Actual Proportion)",
+    color = "Imputation"
+  ) +
+  theme_minimal() +
+  coord_equal() +
+  xlim(0, 1) + 
+  ylim(0, 1)
+
+print(calibration_plot)
+
+# Print average coefficients across imputations
+cat("\nAverage Lasso coefficients across imputations:\n")
+# Extract coefficient names from the first imputation
+coef_names <- rownames(coef_results[[1]])
+
+# Create matrix to store coefficients from all imputations
+all_coefs <- matrix(0, nrow = length(coef_names), ncol = 5)
+rownames(all_coefs) <- coef_names
+
+# Fill in the coefficient matrix
+for (i in 1:5) {
+  all_coefs[, i] <- as.vector(coef_results[[i]])
+}
+
+# Calculate mean coefficients
+mean_coefs <- rowMeans(all_coefs)
+coef_summary <- data.frame(
+  Variable = coef_names,
+  Mean_Coefficient = mean_coefs
+)
+
+# Print non-zero coefficients
+non_zero_coefs <- coef_summary[abs(coef_summary$Mean_Coefficient) > 0.001, ]
+print(non_zero_coefs[order(abs(non_zero_coefs$Mean_Coefficient), decreasing = TRUE), ])
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(scales)
+
+calib_data_list <- vector("list", length(data_imputed))
+
+for (i in seq_along(data_imputed)) {
+  dat <- data_imputed[[i]] %>%
+    drop_na(all_of(c(outcome_var, predictor_vars, "SAMPWEIGHT")))
+
   X <- model.matrix(as.formula(paste(outcome_var, "~", paste(predictor_vars, collapse = "+"))), dat)[, -1]
   y <- dat[[outcome_var]]
   w <- dat$SAMPWEIGHT
 
-  # Split into training and test sets (e.g., 70/30 split)
+  set.seed(1234 + i)
   train_idx <- sample(seq_len(nrow(X)), size = 0.7 * nrow(X))
   test_idx <- setdiff(seq_len(nrow(X)), train_idx)
 
@@ -414,91 +791,227 @@ auc_list <- map(data_imputed, function(dat) {
 
   X_test <- X[test_idx, ]
   y_test <- y[test_idx]
-  w_test <- w[test_idx]
 
-  # Fit random forest model (instead of lasso, because it's a classification problem)
-  rf_model <- ranger(
-    formula = as.formula(paste(outcome_var, "~", paste(predictor_vars, collapse = "+"))),
-    data = dat[train_idx, ],
-    case.weights = w_train,
-    probability = TRUE
+  cv_fit <- cv.glmnet(
+    x = X_train,
+    y = y_train,
+    weights = w_train,
+    alpha = 1,
+    family = "binomial",
+    standardize = TRUE
   )
 
-  # Predict probabilities for class 1
-  pred_probs <- predict(rf_model, data = dat[test_idx, ])$predictions[,2]
+  pred_probs <- predict(cv_fit, newx = X_test, s = "lambda.min", type = "response") %>% as.vector()
 
-  # Compute AUC
-  auc_result <- roc(y_test, pred_probs)$auc
-  return(auc_result)
-})
+  # Count unique predicted probabilities
+  n_unique_preds <- length(unique(pred_probs))
 
-# Pool AUC across imputations
-mean_auc <- mean(unlist(auc_list))
+  # Only proceed with binning if there are at least 2 unique predicted probabilities
+  if (n_unique_preds >= 2) {
+    # Safely bin the predicted probabilities
+    n_bins <- min(5, n_unique_preds)
 
-# Output
-cat("AUC for each imputation:\n")
-print(unlist(auc_list))
-cat("\nPooled AUC across imputations:", round(mean_auc, 3), "\n")
-```
+    calib_data <- tibble(
+      actual = y_test,
+      predicted = pred_probs
+    ) %>%
+      mutate(bin = cut_number(predicted, n = n_bins, labels = FALSE)) %>%
+      group_by(bin) %>%
+      summarise(
+        mean_pred = mean(predicted),
+        obs_rate = mean(actual),
+        .groups = "drop"
+      ) %>%
+      mutate(imputation = paste0("Imputation ", i))
 
-Finally, we will construct a random forest model. For this, I will not use the multiple imputation dataset, as before, I will use the first imputed dataset, with cross validation 5 folds. The pooled AUC is 0.556.
-
-```{r}
-library(ranger)
-library(caret)
-library(pROC)
-library(dplyr)
-
-set.seed(1234)
-k <- 5
-auc_list <- numeric(length(data_imputed))
-
-for (i in seq_along(data_imputed)) {
-  data1 <- data_imputed[[i]]
-
-  # Remove missing outcome
-  data1_complete <- data1 %>% filter(!is.na(COVID))
-
-  # Make sure outcome is binary (0/1)
-  data1_complete$COVID <- as.numeric(data1_complete$COVID)
-
-  # Add weights column if not present
-  data1_complete$weights <- data1_complete$SAMPWEIGHT
-
-  # Create folds
-  folds <- createFolds(data1_complete$COVID, k = k, list = TRUE, returnTrain = FALSE)
-
-  auc_folds <- numeric(k)
-
-  for (fold_idx in seq_along(folds)) {
-    test_idx <- folds[[fold_idx]]
-    train_idx <- setdiff(seq_len(nrow(data1_complete)), test_idx)
-
-    train_data <- data1_complete[train_idx, ]
-    test_data  <- data1_complete[test_idx, ]
-
-    # Fit random forest classifier
-    rf_model <- ranger(
-      formula = COVID ~ EXERCISE + SLEEP + DEPRESSED + TROUBLE_SLEEPING + SOCIAL, #formula
-      data = train_data,
-      case.weights = train_data$weights,
-      probability = TRUE
-    )
-
-    # Predict probabilities for class 1
-    pred_probs <- predict(rf_model, data = test_data)$predictions[,2]
-
-    # Compute AUC
-    auc_folds[fold_idx] <- roc(test_data$COVID, pred_probs, quiet = TRUE)$auc
+    calib_data_list[[i]] <- calib_data
+  } else {
+    message("Skipping calibration plot for imputation ", i, ": too few unique predicted values (", n_unique_preds, " unique values)")
   }
-
-  # Store average AUC for this imputation
-  auc_list[i] <- mean(auc_folds)
 }
 
-# Pool AUC across imputations
-mean_auc <- mean(auc_list)
-print(paste("Pooled AUC across imputations:", round(mean_auc, 3)))
+# Combine all calibration data
+all_calib_data <- bind_rows(calib_data_list)
+
+# Create calibration plot
+ggplot(all_calib_data, aes(x = mean_pred, y = obs_rate, color = imputation)) +
+  geom_line() +
+  geom_point(size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  scale_x_continuous("Expected Probability", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  scale_y_continuous("Observed Proportion", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  labs(title = "Calibration Plot: Lasso Logistic Regression", color = "Imputation") +
+  theme_minimal()
+
+# Combine calibration data
+all_calib_data <- bind_rows(calib_data_list)
+
+# Plot calibration curve
+ggplot(all_calib_data, aes(x = mean_pred, y = obs_rate, color = imputation)) +
+  geom_line() +
+  geom_point(size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  scale_x_continuous("Expected Probability", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  scale_y_continuous("Observed Proportion", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  labs(title = "Calibration Plot: Lasso Logistic Regression", color = "Imputation") +
+  theme_minimal()
+
+# Combine calibration data
+all_calib_data <- bind_rows(calib_data_list)
+
+# Plot calibration curve
+ggplot(all_calib_data, aes(x = mean_pred, y = obs_rate, color = imputation)) +
+  geom_line() +
+  geom_point(size = 2) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray40") +
+  scale_x_continuous("Expected Probability", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  scale_y_continuous("Observed Proportion", limits = c(0, 1), labels = percent_format(accuracy = 1)) +
+  labs(title = "Calibration Plot: Lasso Logistic Regression", color = "Imputation") +
+  theme_minimal()
+# Save the plot
+ggsave(filename = here::here("results", "figures", "lasso_calibration_plot.png"),
+       plot = calibration_plot_lasso,
+       width = 8, height = 6, dpi = 300)
+
+# Initialize list to store AUCs
+auc_list <- vector("numeric", length(data_imputed))
+
+for (i in seq_along(data_imputed)) {
+  dat <- data_imputed[[i]] %>%
+    drop_na(all_of(c(outcome_var, predictor_vars, "SAMPWEIGHT")))
+
+  X <- model.matrix(as.formula(paste(outcome_var, "~", paste(predictor_vars, collapse = "+"))), dat)[, -1]
+  y <- dat[[outcome_var]]
+  w <- dat$SAMPWEIGHT
+
+  set.seed(1234 + i)
+  train_idx <- sample(seq_len(nrow(X)), size = 0.7 * nrow(X))
+  test_idx <- setdiff(seq_len(X), train_idx)
+
+  X_train <- X[train_idx, ]
+  y_train <- y[train_idx]
+  w_train <- w[train_idx]
+
+  X_test <- X[test_idx, ]
+  y_test <- y[test_idx]
+
+  # Fit lasso model
+  cv_fit <- cv.glmnet(
+    x = X_train,
+    y = y_train,
+    weights = w_train,
+    alpha = 1,
+    family = "binomial",
+    standardize = TRUE
+  )
+
+  # Predict probabilities
+  pred_probs <- predict(cv_fit, newx = X_test, s = "lambda.min", type = "response") %>% as.vector()
+
+  # Compute AUC
+  auc_val <- roc(y_test, pred_probs)$auc
+  auc_list[i] <- auc_val
+}
+
+# Print AUCs
+cat("AUC for each imputation:\n")
+print(round(auc_list, 3))
+
+# Mean (pooled) AUC
+cat("\nPooled AUC across imputations:", round(mean(auc_list), 3), "\n")
+```
+
+Finally, we will construct a random forest model. For this, I will not use the multiple imputation dataset, as before, I will use the first imputed dataset, with cross validation 5 folds. Pooled AUC is calculated and a observed-expected plot is generated.
+
+```{r}
+cross_validation_imputed_predictions <- function(imputed_data, predictors, k_folds = 5) {
+  auc_list <- numeric(length(imputed_data))  # Store AUCs
+  predictions_list <- vector("list", length(imputed_data))  # Store predictions and actuals
+
+  for (i in 1:length(imputed_data)) {
+    data <- imputed_data[[i]] %>%
+      drop_na(all_of(c("COVID", predictors, "SAMPWEIGHT")))
+    
+    set.seed(123)
+    folds <- sample(1:k_folds, size = nrow(data), replace = TRUE)
+    
+    fold_auc <- numeric(k_folds)
+    imputation_preds <- tibble()  # Empty tibble to collect preds for this imputation
+
+    for (fold in 1:k_folds) {
+      train_data <- data[folds != fold, ]
+      test_data  <- data[folds == fold, ]
+
+      formula <- as.formula(paste("COVID ~", paste(predictors, collapse = " + ")))
+      rf_model <- ranger(
+        formula = formula,
+        data = train_data,
+        case.weights = train_data$SAMPWEIGHT,
+        probability = TRUE
+      )
+
+      pred_probs <- predict(rf_model, data = test_data)$predictions[, 2]
+      actual <- test_data$COVID
+
+      # Store predictions
+      imputation_preds <- bind_rows(imputation_preds, tibble(actual = actual, predicted = pred_probs))
+
+      # AUC
+      auc_result <- roc(actual, pred_probs)$auc
+      fold_auc[fold] <- auc_result
+    }
+
+    auc_list[i] <- mean(fold_auc)
+    predictions_list[[i]] <- imputation_preds
+  }
+
+  list(
+    auc_per_imputation = auc_list,
+    overall_auc = mean(auc_list),
+    predictions = predictions_list  # List of tibbles with actual + predicted
+  )
+}
+# Assuming you have your imputed_data and a vector of predictors
+results_with_preds <- cross_validation_imputed_predictions(
+  imputed_data = data_imputed,
+  predictors = c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL")
+)
+
+# View results
+results$auc_per_imputation  # AUC for each imputed dataset
+results$overall_auc         # Average AUC across imputations
+
+# Create calibration plot from predictions across imputations
+plot_calibration_multiple <- function(predictions_list, n_bins = 10, title = "Calibration Plot") {
+  calib_data_all <- map2_dfr(predictions_list, seq_along(predictions_list), function(df, i) {
+    df %>%
+      mutate(bin = ntile(predicted, n_bins)) %>%
+      group_by(bin) %>%
+      summarise(
+        mean_pred = mean(predicted),
+        obs_rate = mean(actual),
+        .groups = "drop"
+      ) %>%
+      mutate(imputation = paste0("Imputation ", i))
+  })
+
+  ggplot(calib_data_all, aes(x = mean_pred, y = obs_rate, color = imputation)) +
+    geom_line() +
+    geom_point(size = 2) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+    scale_x_continuous("Expected probability", limits = c(0, 1), labels = scales::percent_format(accuracy = 1)) +
+    scale_y_continuous("Observed proportion", limits = c(0, 1), labels = scales::percent_format(accuracy = 1)) +
+    labs(title = title, color = "Imputation") +
+    theme_minimal()
+}
+
+# Plot it
+plot_cal <- plot_calibration_multiple(results_with_preds$predictions, title = "Calibration Plot: RF across 5 Imputations")
+print(plot_cal)
+
+# Save it
+ggsave(here("results", "figures", "rf_calibration_all_imputations.png"), plot_cal, width = 8, height = 6, dpi = 300)
+
 ```
 
 Let's put these into a nice table for the manuscript. 
@@ -526,5 +1039,89 @@ model_table
 # Save the table as a PNG
 here()
 gtsave(model_table, here("results", "figures", "model_table.png"))
+
+
+# Store your AUC lists here
+aauc_multivar <- results$auc_per_imputation  # From multivariate logistic regression with CV
+auc_lasso     <- unlist(auc_list)                      # From your LASSO section
+auc_rf        <- auc_list                              # From your final RF model section
+
+# Create a data frame with AUC values and model type
+auc_df <- data.frame(
+  Imputation = rep(1:5, 3),
+  AUC = c(auc_multivar, auc_lasso, auc_rf),
+  Model = rep(c("Multivariate Logistic Regression", "LASSO", "Random Forest"), each = 5)
+)
+
+# Plot: AUCs across imputations by model
+aucs <- ggplot(auc_df, aes(x = Model, y = AUC, color = Model)) +
+  geom_jitter(width = 0.2, size = 2) +         # dots for individual AUCs
+  stat_summary(fun = mean, geom = "point", shape = 18, size = 4, color = "black") +
+  stat_summary(fun = mean, geom = "text", aes(label = round(..y.., 3)), 
+               vjust = -1, color = "black", fontface = "bold") +
+  labs(title = "AUC Across Imputations by Model",
+       x = "Model",
+       y = "AUC") +
+  theme_minimal()
+
+# Save the table as a PNG
+here()
+ggsave(
+  filename = here("results", "figures", "auc_plot.png"),
+  plot = aucs,  # replace with your plot object name
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
 ```
 
+
+Now, we will make expected versus observed plots.
+```{r}
+plot_calibration_multiple <- function(actual, predicted_list, n_bins = 10, title = "Calibration Plot") {
+  # Combine calibration data across imputations
+  calib_data_all <- map2_dfr(predicted_list, seq_along(predicted_list), function(predicted, i) {
+    tibble(actual = actual, predicted = predicted) %>%
+      mutate(bin = ntile(predicted, n_bins)) %>%
+      group_by(bin) %>%
+      summarise(
+        mean_pred = mean(predicted),
+        obs_rate = mean(actual),
+        .groups = "drop"
+      ) %>%
+      mutate(imputation = paste0("Imputation ", i))
+  })
+
+  # Plot
+  ggplot(calib_data_all, aes(x = mean_pred, y = obs_rate, color = imputation)) +
+    geom_line() +
+    geom_point(size = 2) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray") +
+    scale_x_continuous("Expected probability", limits = c(0, 1), labels = scales::percent_format(accuracy = 1)) +
+    scale_y_continuous("Observed proportion", limits = c(0, 1), labels = scales::percent_format(accuracy = 1)) +
+    labs(title = title, color = "Imputation") +
+    theme_minimal()
+}
+
+
+# Example usage:
+plot_cal <- plot_calibration_multiple(
+  actual = test_data$COVID,
+  predicted_list = pred_probs_list,  # this should be a list of 5 vectors
+  title = "Random Forest Calibration Across 5 Imputations"
+)
+
+# Display plot
+print(plot_cal)
+
+# Save it
+ggsave(
+  filename = here("results", "figures", "rf_calibration_all_imputations.png"),
+  plot = plot_cal,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+```
