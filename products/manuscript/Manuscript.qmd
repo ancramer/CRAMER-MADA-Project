@@ -1,5 +1,5 @@
 ---
-title: "Mental Health Factors and Covid"
+title: "Association of Mental Health Factors with COVID-19 Test Status"
 author: "Annalise Cramer"
 format:
   docx:
@@ -219,10 +219,20 @@ knitr::include_graphics(here("results","figures", "rf_calibration_all_imputation
 # Discussion
 
 ## Summary and Interpretation
-_Summarize what you did, what you found and what it means._
+The exploratory analysis revealed prevalence of mental health factors among the population by COVID-19 test status. Interestingly, individuals who reported receiving less social support occured at a higher rate for those who did not test positive for COVID-19 (0.10 (0.10, 0.10)) than those who did test positive for COVID-19 (0.08 (0.07, 0.09)). A difference in prevalence between COVID-19 test status was not noted for individuals who reported no change/more social support.
+
+Individuals who reported recent trouble sleeping were occured at a higher prevalence for those who tested postive for COVID-19 (0.374 (0.36, 0.39)) than those who did not recieve a positive COVID-19 test  (0.345 (0.34, 0.35)). Individuals who did not report recent trouble sleeping showed a difference by COVID-19 test status, with less testing positive for COVID-19 (0.626 (0.61, 0.64)) and more not testing positive for COVID-19 (0.655 (0.65, 0.66)).
+
+Model preformance was evaluated via the AUC matric. The logistic regression model had a pooled AUC of 0.5031. The LASSO regression model showed a pooled AUC of 0.5301. The random forest model showed the highest pooled AUC of 0.5474. AUC values for all models are fairly close to 0.50, with only small improvement with the randome forest model. This indicates the models have little ability to discriminate between a postive or negative COVID-19 test based on mental health factors, with the random forest model being the best.
+
+Plots for observed vs. expected values provide a secondary assessment of model preformance, which show how closesly the training data matched the testing data. Plots for well calibrated models should show the points for imputations falling along the 45 degree dotted line, which is not present in the logistic regression or LASSO regression models. The random forest model shows some closeness to the 45 degree line, confirming it to be the best model. However, no model shows good predicitive power, given there is minimal closeness to the line.
+
 
 ## Strengths and Limitations
-_Discuss what you perceive as strengths and limitations of your analysis._
+This study used data collected from the National Health Information Surveys, a well established and thorough survey program run by the CDC. NHIS uses sampling methods and covers many health-related topics, allowing it to be generalizable to the United States population. Additionally, this study uses multiple imputation to fill missing data points, which reduces the introduciton of potential bias from discarding missings or from single imputation. Applying cross validation to the three full models allows for analysis of predictive power, and the use of the LASSO regression allows for penalization of unecessary predictors, and the use of the random forest models allows for potential non-linear relationships.
+
+Limitations of this study include the nature of survey data. Because individuals self-reported this data, it is possible that recall bias may influence accuracy. Associations between predictors and COVID test status cannot be established as causal. Without inclusions of full survey design variables, the three full models are not generalizable to the United States population. Finally, all three models showed moderate to low predicitive power.
+
 
 ## Conclusions
 _What are the main take-home messages?_
