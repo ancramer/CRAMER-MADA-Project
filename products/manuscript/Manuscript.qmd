@@ -235,7 +235,15 @@ Limitations of this study include the nature of survey data. Because individuals
 
 
 ## Conclusions
-_What are the main take-home messages?_
+We found that indications of poor mental health were common in the population, as INSERT HERE. Differences between individuals who tested positive for COVID-19 and who didn't test positive for COVID-19 were found among those who indicated recieveing less social support and those who reported trouble sleeping. However, these differences were relatively small.
+
+Predicitve modeling with logistic regression, LASSO regression, and random forest models showed weak preformance and low predicitve power, indicating mental health factors show little indication of COVID-19 test status.
+
+Despite the lack of strong results, these findings show the complications in understanding how mental health and physical health are related. Little consideration was given to the impacts of societal measures for disease control at the start of the SARS-CoV-2 pandemic, and it's proven difficult to find such connections in the data. Future work may explore these topics further by using longitudinal data to track changes in mental health over the duration of COVID-19 infection. Future surveys may differentiate the experinces of various disease control measures (quarantining, isolation, masking, etc.) or mental health conditions (feelings of anxiety, educational impacts) to further specify the potential impacts on mental health. Finally, including complete survey design in the creation of the full models would offer more generalizable results towards the United States population.
+
+1.) What is the prevalence of poor mental health?
+2.) Is poor mental health associated with a positive covid test? 
+
 
 _Include citations in your Rmd file using bibtex, the list of references will automatically be placed at the end_
 
