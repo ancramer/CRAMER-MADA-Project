@@ -22,13 +22,12 @@ library(mitools)
 library(tableone)
 library(survey)
 library(gt)
-here()
 ```
 
 
 **Authors**  
 
-* Annalise Cramer$^{1,2 \land}$ (ORCID: 0009-0002-8718-3593) 
+* Annalise Cramer$^{1,2}$ (ORCID: 0009-0002-8718-3593) 
 
 **Author affiliations**  
 
@@ -95,7 +94,7 @@ Factors studied include:
 
 ```{r}
 #| label: fig-schematic
-#| fig-cap: "Figure 1. Flowchart depicting methodology of this study."
+#| fig-cap: "Flowchart depicting methodology of this study."
 #| echo: FALSE
 knitr::include_graphics(here("results","figures", "flowchart.png"))
 ```
@@ -131,8 +130,8 @@ After creating binary variables, significant amounts of data were missing, seen 
 Multiple imputation was used to create 5 sets of imputed data, and used for the remainder of analysis. To calculate later statistics, processes were preformed on each of the 5 sets and then averaged.
 
 ```{r}
-#| label: tab-1
-#| fig-cap: "Table 1. Table depicting porportion of responses among all observations, incliding missingness."
+#| label: tbl-1
+#| tbl-cap: "Table depicting porportion of responses among all observations, incliding missingness."
 #| echo: FALSE
 knitr::include_graphics(here("results","figures", "summary_table_with_nas.png"))
 ```
@@ -148,8 +147,8 @@ knitr::include_graphics(here("results","figures", "summary_table_with_nas.png"))
 To examine prevelance of mental health factors among the United States population, compmlex survey design was used to allow for generalizability of results, specifically, variables PSU, STRATA, and SAMPWEIGHT. A summary table was generated to find occurence of each of the factors and their inverses among the data, seen below.
 
 ```{r}
-#| label: tab-2
-#| fig-cap: "Table 2. Table depicting prevalence estimates with 95% confidence intervals among the United State population. Results are split by COVID-19 test status, and shown for overall population."
+#| label: tbl-2
+#| tbl-cap: "Table depicting prevalence estimates with 95% confidence intervals among the United State population. Results are split by COVID-19 test status, and shown for overall population."
 #| echo: FALSE
 knitr::include_graphics(here("results","figures", "table1_imputed.png"))
 ```
@@ -163,9 +162,8 @@ Next, single models were ran to find associations between each variable with cov
 
 ```{r}
 #| label: tbl-summarytable
-#| tbl-cap: "Table 3. Assocation of mental health factors with positive COVID-19 test results among the United State population."
+#| tbl-cap: "Assocation of mental health factors with positive COVID-19 test results among the United State population."
 #| echo: FALSE
-here()
 knitr::include_graphics(here("results","figures", "single_model_table.png"))
 ```
 
@@ -176,13 +174,12 @@ To better understand the relationship between COVID-19 test status and mental he
 
 All models included COVID-19 test status as the outcome and all mental helath variables as predictors (hours of sleep, touble sleeping, feeling depressed, meeting exercise guidelines, and amount of social support). The multivariate logistic regression was chosen for it's ease of interpretability and to serve as a baseline against the more advanced models. The LASSO model was chosen for it's ability to penalize predictors to indicate which mental health factors were most important. The random forest model was used to capture potential complex relationships between variables.
 
-To evalaute the performance of these models, the area under the curve (AUC) was calculated. This metric was chosen due to it's discrimination between binary outcome of the COVID-19 variable. Higher AUC indicates better model preformance. Desspite the Logistic Regression model and the Lasso Regression model have the same mean AUC, they are not the same, shown by the differing values for the imputations. Code was checked to ensure the models were not the same.
+To evalaute the performance of these models, the area under the curve (AUC) was calculated. This metric was chosen due to it's discrimination between binary outcome of the COVID-19 variable. Higher AUC indicates better model preformance. Despite the Logistic Regression model and the Lasso Regression model have the same mean AUC, they are not the same, shown by the differing values for the imputations. Code was checked to ensure the models were not the same.
 
 ```{r}
 #| label: fig-aucplot
-#| fig-cap: "Figure 2. Plot comparing area under the curve (AUC) metrics among imputations between logistic regression model, LASSO regression model, and random forest model. Higher AUC indicates better preformance. "
+#| fig-cap: "Plot comparing area under the curve (AUC) metrics among imputations between logistic regression model, LASSO regression model, and random forest model. Higher AUC indicates better preformance. "
 #| echo: FALSE
-here()
 knitr::include_graphics(here("results","figures", "auc_comparison_plot.png"))
 ```
 
@@ -191,25 +188,22 @@ Observed vs. expected plots for the three models compare the predictive power of
 
 ```{r}
 #| label: fig-log-plot
-#| fig-cap: "Figure 3. Logistic Regression calibration plot."
+#| fig-cap: "Logistic Regression calibration plot."
 #| echo: FALSE
-here()
 knitr::include_graphics(here("results","figures", "log_calibration_plot.png"))
 ```
 
 ```{r}
 #| label: fig-lasso-plot
-#| fig-cap: "Figure 4. LASSO Regression calibration plot."
+#| fig-cap: "LASSO Regression calibration plot."
 #| echo: FALSE
-here()
 knitr::include_graphics(here("results","figures", "lasso_calibration_plot.png"))
 ```
 
 ```{r}
 #| label: fig-rf-plot
-#| fig-cap: "Figure 5. Random Forest calibration plot. "
+#| fig-cap: "Random Forest calibration plot. "
 #| echo: FALSE
-here()
 knitr::include_graphics(here("results","figures", "rf_calibration_all_imputations.png"))
 ```
 
@@ -239,7 +233,7 @@ Limitations of this study include the nature of survey data. Because individuals
 
 
 ## Conclusions
-We found that indications of poor mental health were common in the population United States population, with trouble sleeping, exercise, and getting enough sleep, while depressed and social isolation occured in at a lower prevalence (Tab. 2). Sleep difficulties were commonly reported during the SARS-CoV-2 pandemic, which supports these results^$5$.
+We found that indications of poor mental health were common in the population United States population, with trouble sleeping, exercise, and getting enough sleep, while depressed and social isolation occured in at a lower prevalence (Tab. 2). Sleep difficulties were commonly reported during the SARS-CoV-2 pandemic, which supports these results$^5$.
 
 Social support was the only mental health variable to vary among the population by COVID-19 test status (Tab. 2). Interestingly, recieving less social support was found to be protective against SARS-CoV-2 (Tab. 3). This is likely due to isolation and quarantining practices that occured during thee years 2020-2022$^6$.
 
