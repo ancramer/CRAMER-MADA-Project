@@ -176,18 +176,42 @@ To better understand the relationship between COVID-19 test status and mental he
 
 All models included COVID-19 test status as the outcome and all mental helath variables as predictors (hours of sleep, touble sleeping, feeling depressed, meeting exercise guidelines, and amount of social support). The multivariate logistic regression was chosen for it's ease of interpretability and to serve as a baseline against the more advanced models. The LASSO model was chosen for it's ability to penalize predictors to indicate which mental health factors were most important. The random forest model was used to capture potential complex relationships between variables.
 
-To evalaute the performance of these models, the area under the curve (AUC) was calculated. This metric was chosen due to it's discrimination between binary outcome of the COVID-19 variable. Higher AUC indicates better model preformance.
+To evalaute the performance of these models, the area under the curve (AUC) was calculated. This metric was chosen due to it's discrimination between binary outcome of the COVID-19 variable. Higher AUC indicates better model preformance. Desspite the Logistic Regression model and the Lasso Regression model have the same mean AUC, they are not the same, shown by the differing values for the imputations. Code was checked to ensure the models were not the same.
 
 ```{r}
 #| label: fig-aucplot
 #| fig-cap: "AUC comparison plot"
 #| echo: FALSE
 here()
-knitr::include_graphics(here("results","figures", "auc_plot.png"))
+knitr::include_graphics(here("results","figures", "auc_comparison_plot.png"))
 ```
 
+Observed vs. expected plots for the three models compare the predictive power of the models from the cross validated data. Training data was used for expectations and observed data was drawn from the testing data. Plots evaluate the models' modest predictive power on COVID-19 test outcomes from mental health variables.
 
 
+```{r}
+#| label: fig-log-plot
+#| fig-cap: "Logistic Regression calibration plot"
+#| echo: FALSE
+here()
+knitr::include_graphics(here("results","figures", "log_calibration_plot.png"))
+```
+
+```{r}
+#| label: fig-lasso-plot
+#| fig-cap: "LASSO Regression calibration plot"
+#| echo: FALSE
+here()
+knitr::include_graphics(here("results","figures", "lasso_calibration_plot.png"))
+```
+
+```{r}
+#| label: fig-rf-plot
+#| fig-cap: "Random Forest calibration plot"
+#| echo: FALSE
+here()
+knitr::include_graphics(here("results","figures", "rf_calibration_all_imputations.png"))
+```
 
 {{< pagebreak >}}
 
