@@ -95,7 +95,7 @@ Factors studied include:
 
 ```{r}
 #| label: fig-schematic
-#| fig-cap: "Flowchart depicting methodology"
+#| fig-cap: "Figure 1. Flowchart depicting methodology of this study."
 #| echo: FALSE
 knitr::include_graphics(here("results","figures", "flowchart.png"))
 ```
@@ -132,7 +132,7 @@ Multiple imputation was used to create 5 sets of imputed data, and used for the 
 
 ```{r}
 #| label: tab-1
-#| fig-cap: "Missingness table"
+#| fig-cap: "Table 1. Table depicting porportion of responses among all observations, incliding missingness."
 #| echo: FALSE
 knitr::include_graphics(here("results","figures", "summary_table_with_nas.png"))
 ```
@@ -148,8 +148,8 @@ knitr::include_graphics(here("results","figures", "summary_table_with_nas.png"))
 To examine prevelance of mental health factors among the United States population, compmlex survey design was used to allow for generalizability of results, specifically, variables PSU, STRATA, and SAMPWEIGHT. A summary table was generated to find occurence of each of the factors and their inverses among the data, seen below.
 
 ```{r}
-#| label: fig-1
-#| fig-cap: "Summary statistics table"
+#| label: tab-2
+#| fig-cap: "Table 2. Table depicting prevalence estimates with 95% confidence intervals among the United State population. Results are split by COVID-19 test status, and shown for overall population."
 #| echo: FALSE
 knitr::include_graphics(here("results","figures", "table1_imputed.png"))
 ```
@@ -163,7 +163,7 @@ Next, single models were ran to find associations between each variable with cov
 
 ```{r}
 #| label: tbl-summarytable
-#| tbl-cap: "Single model table"
+#| tbl-cap: "Table 3. Assocation of mental health factors with positive COVID-19 test results among the United State population."
 #| echo: FALSE
 here()
 knitr::include_graphics(here("results","figures", "single_model_table.png"))
@@ -180,7 +180,7 @@ To evalaute the performance of these models, the area under the curve (AUC) was 
 
 ```{r}
 #| label: fig-aucplot
-#| fig-cap: "AUC comparison plot"
+#| fig-cap: "Figure 2. Plot comparing area under the curve (AUC) metrics among imputations between logistic regression model, LASSO regression model, and random forest model. Higher AUC indicates better preformance. "
 #| echo: FALSE
 here()
 knitr::include_graphics(here("results","figures", "auc_comparison_plot.png"))
@@ -191,7 +191,7 @@ Observed vs. expected plots for the three models compare the predictive power of
 
 ```{r}
 #| label: fig-log-plot
-#| fig-cap: "Logistic Regression calibration plot"
+#| fig-cap: "Figure 3. Logistic Regression calibration plot."
 #| echo: FALSE
 here()
 knitr::include_graphics(here("results","figures", "log_calibration_plot.png"))
@@ -199,7 +199,7 @@ knitr::include_graphics(here("results","figures", "log_calibration_plot.png"))
 
 ```{r}
 #| label: fig-lasso-plot
-#| fig-cap: "LASSO Regression calibration plot"
+#| fig-cap: "Figure 4. LASSO Regression calibration plot."
 #| echo: FALSE
 here()
 knitr::include_graphics(here("results","figures", "lasso_calibration_plot.png"))
@@ -207,7 +207,7 @@ knitr::include_graphics(here("results","figures", "lasso_calibration_plot.png"))
 
 ```{r}
 #| label: fig-rf-plot
-#| fig-cap: "Random Forest calibration plot"
+#| fig-cap: "Figure 5. Random Forest calibration plot. "
 #| echo: FALSE
 here()
 knitr::include_graphics(here("results","figures", "rf_calibration_all_imputations.png"))
@@ -219,13 +219,17 @@ knitr::include_graphics(here("results","figures", "rf_calibration_all_imputation
 # Discussion
 
 ## Summary and Interpretation
-The exploratory analysis revealed prevalence of mental health factors among the population by COVID-19 test status. Interestingly, individuals who reported receiving less social support occured at a higher rate for those who did not test positive for COVID-19 (0.10 (0.10, 0.10)) than those who did test positive for COVID-19 (0.08 (0.07, 0.09)). A difference in prevalence between COVID-19 test status was not noted for individuals who reported no change/more social support.
+The exploratory analysis revelaed that feeling depressed occurs a prevalence of 0.095 (0.09, 0.10). meeting exercise requiremnts occurs at a prevalence of  0.526 (0.52, 0.53), getting enough sleep occurs at a prevalence of 0.494 (0.49, 0.50), recieving less social support occurs at a prevalence of 0.097 (0.09, 0.10), and having trouble sleeping occurs at a prevalence of 0.630 (0.62, 0.64) (Tab. 2). Several of these factors occur in the majority of the population, that is, trouble sleeping and exercise, and getting enough sleep occured in almost half the population. Feeling depressed and recieving less socual support occured in a small fraction of the population (Tab. 2).
 
-Individuals who reported recent trouble sleeping were occured at a higher prevalence for those who tested postive for COVID-19 (0.374 (0.36, 0.39)) than those who did not recieve a positive COVID-19 test  (0.345 (0.34, 0.35)). Individuals who did not report recent trouble sleeping showed a difference by COVID-19 test status, with less testing positive for COVID-19 (0.626 (0.61, 0.64)) and more not testing positive for COVID-19 (0.655 (0.65, 0.66)).
+The exploratory analysis revealed prevalence of mental health factors among the population by COVID-19 test status. Interestingly, individuals who reported receiving less social support occured at a higher rate for those who did not test positive for COVID-19 (0.10 (0.10, 0.10)) than those who did test positive for COVID-19 (0.08 (0.07, 0.09)) (Tab. 2). A difference in prevalence between COVID-19 test status was not noted for individuals who reported no change/more social support.
 
-Model preformance was evaluated via the AUC matric. The logistic regression model had a pooled AUC of 0.5031. The LASSO regression model showed a pooled AUC of 0.5301. The random forest model showed the highest pooled AUC of 0.5474. AUC values for all models are fairly close to 0.50, with only small improvement with the randome forest model. This indicates the models have little ability to discriminate between a postive or negative COVID-19 test based on mental health factors, with the random forest model being the best.
+Single models quantified association of each mental health factor with a positive COVID-19 test. Feeling depressed, and getting exercise were not significantly associated witha positive COVID-19 test (Tab. 3). Getting enough sleep was found to slightly increase the odds of a positive COVID-19 test (OR = 1.076 (1.026–1.13), p = 0.003). Getting less social support was found to slightly decrease the odds of a positive COVID-19 test (OR = 0.777, (0.691, 0.875), p < 0.0001). This may indicate effectiveness of societal control strategies, that is, social distancing, quarantine, and isolation in preventing spread of COVID-19. Reporting trouble sleeping was found to slightly increase the odds of a positive COVID-19 test (OR = 1.134 (1.067, 1.206), p < 0.0001), which slightly disagrees with results of the SLEEP vairbale described earlier (Tab. 3).
 
-Plots for observed vs. expected values provide a secondary assessment of model preformance, which show how closesly the training data matched the testing data. Plots for well calibrated models should show the points for imputations falling along the 45 degree dotted line, which is not present in the logistic regression or LASSO regression models. The random forest model shows some closeness to the 45 degree line, confirming it to be the best model. However, no model shows good predicitive power, given there is minimal closeness to the line.
+Individuals who reported recent trouble sleeping were occured at a higher prevalence for those who tested postive for COVID-19 (0.374 (0.36, 0.39)) than those who did not recieve a positive COVID-19 test  (0.345 (0.34, 0.35)). Individuals who did not report recent trouble sleeping showed a difference by COVID-19 test status, with less testing positive for COVID-19 (0.626 (0.61, 0.64)) and more not testing positive for COVID-19 (0.655 (0.65, 0.66)) (Tab. 2).
+
+Model preformance was evaluated via the AUC metric. The logistic regression model had a pooled AUC of 0.5031. The LASSO regression model showed a pooled AUC of 0.5301. The random forest model showed the highest pooled AUC of 0.5474. AUC values for all models are fairly close to 0.50, with only small improvement with the randome forest model (Fig. 2). This indicates the models have little ability to discriminate between a postive or negative COVID-19 test based on mental health factors, with the random forest model being the best.
+
+Plots for observed vs. expected values provide a secondary assessment of model preformance, which show how closesly the training data matched the testing data. Plots for well calibrated models should show the points for imputations falling along the 45 degree dotted line, which is not present in the logistic regression (Fig. 3) or LASSO regression models (Fig. 4). The random forest model shows some closeness to the 45 degree line, confirming it to be the best model (Fig. 5). However, no model shows good predicitive power, given there is minimal closeness to the line.
 
 
 ## Strengths and Limitations
@@ -235,7 +239,7 @@ Limitations of this study include the nature of survey data. Because individuals
 
 
 ## Conclusions
-We found that indications of poor mental health were common in the population, as ######%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%INSERT HERE. YOU NEED TO MAKE THIS TABLE FOR NON SPLIT BY COVID TEST AND WRITE RESULTS IN. ALSO YOU NEED TO PUT IN CITAIONS Differences between individuals who tested positive for COVID-19 and who didn't test positive for COVID-19 were found among those who indicated recieveing less social support and those who reported trouble sleeping. However, these differences were relatively small.
+We found that indications of poor mental health were common in the population. Most common was  ######%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%INSERT HERE. YOU NEED TO MAKE THIS TABLE FOR NON SPLIT BY COVID TEST AND WRITE RESULTS IN. ALSO YOU NEED TO PUT IN CITAIONS Differences between individuals who tested positive for COVID-19 and who didn't test positive for COVID-19 were found among those who indicated recieveing less social support and those who reported trouble sleeping. However, these differences were relatively small.
 
 Predictive modeling with logistic regression, LASSO regression, and random forest models showed weak preformance and low predicitve power, indicating mental health factors show little indication of COVID-19 test status.
 
