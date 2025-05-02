@@ -59,18 +59,16 @@ We find
 
 ## General Background Information
 
-When the SARS-CoV-2 pandemic began in late 2019, there were very few control measures enacted within the United States. By Spring of 2020, this had drastically changed, and control measures were broadly put into effect across the country. Social distancing, quantining, isolation, and lockdowns were prioritized control of transmission, but societal impacts were not initially considered. Disruptions to daily routine and social interactions quickly became a widespread concerns for their potential impacts on mental health, with widespread increases in anxiety, depression, loneliness, and sleep disturbances (CITATION NEEDED).
+When the SARS-CoV-2 pandemic began in late 2019, there were very few control measures enacted within the United States. By Spring of 2020, this had drastically changed, and control measures were broadly put into effect across the country. Social distancing, quantining, isolation, and lockdowns were prioritized control of transmission, but societal impacts were not initially considered. Disruptions to daily routine and social interactions quickly became a widespread concerns for their potential impacts on mental health, with widespread increases in anxiety, depression, loneliness, and sleep disturbances$^1$.
 
-Pandemic control strategies have become commonly criticized for the impacts on individuals' psychological well-being. Research documents the mental health consequences of pandemic control strageies (CITATION SAME AS BEFORE), but the potential relationships between mental health factors and vulnerability to SARS-CoV-2 infection is less understood.
+Pandemic control strategies have become commonly criticized for the impacts on individuals' psychological well-being. Research documents the mental health consequences of pandemic control strageies$^1$, but the potential relationships between mental health factors and vulnerability to SARS-CoV-2 infection is less understood.
 
-This study seeks to add to the limited understanding of mental health and COVID-19 vulnerability by expliorung associations between mental health factors and COVID-19 test positivity status. Self reported bouts of depressed mood, perceived social support, amount of exercise, and sleep quality (via hours of sleep and reporting difficulty falling asleep) are examined. (CITATION HERE) Simple and multiple regression models including Lasso and Random Forest are used to explore the predicitve power of mental health factors to a positive COVID-19 test.
+This study seeks to add to the limited understanding of mental health and COVID-19 vulnerability by expliorung associations between mental health factors and COVID-19 test positivity status. Self reported bouts of depressed mood, perceived social support, amount of exercise, and sleep quality (via hours of sleep and reporting difficulty falling asleep) are examined$^2$.Simple and multiple regression models including Lasso and Random Forest are used to explore the predicitve power of mental health factors to a positive COVID-19 test.
 
-Cite this properly later:
-1.) https://www.tandfonline.com/doi/full/10.1080/09638237.2020.1757052
 
 ## Description of data and data source
 
-Data for this project is survey data collected from the National Health Interview Survey, produced by IPUMS through the University of Minnesota. This data was collected among United States residents of all ages and genders from 2019 - 2022 in the United States.
+Data for this project is survey data collected from the National Health Interview Survey, produced by IPUMS through the University of Minnesota. This data was collected among United States residents of all ages and genders from 2020 - 2022 in the United States$^2$.
 
 ## Questions/Hypotheses to be addressed
 
@@ -111,9 +109,9 @@ National Health Information Survey data was obtained from IPUMS, used with permi
 
 Data was used in 2020 and after, given the NHIS didn't have questions about COVID-19 testing in 2019, these questions began in 2020. Binary variables were created to allow for interpretability.
 
-EXERCISE is a combination of number of minutes of passive or aerboic exercise, descirbing whether weekly amount meets the American Heart Association's guidelines for exercise needed to stay healthy. For adults, this includes 150 minutes per week of moderate intensity aerobic activity, 75 minutes per week of vigorous aerobic activity, or a combination of both.Children ages 6-17 should get 60 minutes of moderate to vigorous intenisty physical activity. A value of 1 for this binary variable means that the individual met exercise recommendations, and a 0 means that the individual did not meet exercise recommendations.
+EXERCISE is a combination of number of minutes of passive or aerboic exercise, descirbing whether weekly amount meets the American Heart Association's guidelines (based on Office of Disease Prevention and Health Promotion recommendations)$^3$ for exercise needed to stay healthy. For adults, this includes 150 minutes per week of moderate intensity aerobic activity, 75 minutes per week of vigorous aerobic activity, or a combination of both.Children ages 6-17 should get 60 minutes of moderate to vigorous intenisty physical activity. A value of 1 for this binary variable means that the individual met exercise recommendations, and a 0 means that the individual did not meet exercise recommendations.
 
-SLEEP is based on the NIH guidelines for recommended hours of sleep per day, which differs by age. Individuals under age 1 are suggested to get 12-16 hours of sleep per day, children ages 1 to 2 are suggested to get 11-14 hours of sleep per day, children ages 3 to 5 years are suggested to get 10-13 hours of sleep per day, children ages 6 to 12 years are suggested to get 9-12 hours of sleep per day, teens ages 13-18 are suggested to get 8-10 hours of sleep per day, and adults (over the age of 18) are suggested to get 7-9 hours of sleep per day. Guidelines do not require that sleep takes place at nighttime, and details that naps count towards sleep totals. A value of 1 for this binary variable means that the individual met recommendations for hours of sleep per day, and a 0 means that the individual did not meet recommendations for hours of sleep recommendations.
+SLEEP is based on the NIH guidelines for recommended hours of sleep per day, which differs by age$^4$. Individuals under age 1 are suggested to get 12-16 hours of sleep per day, children ages 1 to 2 are suggested to get 11-14 hours of sleep per day, children ages 3 to 5 years are suggested to get 10-13 hours of sleep per day, children ages 6 to 12 years are suggested to get 9-12 hours of sleep per day, teens ages 13-18 are suggested to get 8-10 hours of sleep per day, and adults (over the age of 18) are suggested to get 7-9 hours of sleep per day. Guidelines do not require that sleep takes place at nighttime, and details that naps count towards sleep totals. A value of 1 for this binary variable means that the individual met recommendations for hours of sleep per day, and a 0 means that the individual did not meet recommendations for hours of sleep recommendations.
 
 
 DEPRESSED includes a 1 if the individual reports feeling depressed on a weekly or daily basis, but a 0 for feeling depressed at a frequency of monthly or less. 
@@ -240,19 +238,21 @@ Limitations of this study include the nature of survey data. Because individuals
 
 
 ## Conclusions
-We found that indications of poor mental health were common in the population United States population, with trouble sleeping, exercise, and getting enough sleep, while depressed and social isolation occured in at a lower prevalence (Tab. 2). Sleep difficulties were commonly reported during the SARS-CoV-2 pandemic, which supports these results. CITE ME %%%%%%%%
+We found that indications of poor mental health were common in the population United States population, with trouble sleeping, exercise, and getting enough sleep, while depressed and social isolation occured in at a lower prevalence (Tab. 2). Sleep difficulties were commonly reported during the SARS-CoV-2 pandemic, which supports these results^$5$.
 
-Social support was the only mental health variable to vary among the population by COVID-19 test status (Tab. 2). Interestingly, recieving less social support was found to be protective against SARS-CoV-2 (Tab. 3). This is likely due to isolation and quarantining practices that occured during thee years 2020-2022. CITE ME %%%%%
+Social support was the only mental health variable to vary among the population by COVID-19 test status (Tab. 2). Interestingly, recieving less social support was found to be protective against SARS-CoV-2 (Tab. 3). This is likely due to isolation and quarantining practices that occured during thee years 2020-2022$^6$.
 
-Predictive models showed weak preformancce and poor predicitve power (Figs. 2, 3). The relationship between SARS-CoV-2 and mental health continues to be challenging to understand and interpret.
-
-_Include citations in your Rmd file using bibtex, the list of references will automatically be placed at the end_
-
+Predictive models showed weak preformancce and poor predictive power (Figs. 2, 3). The relationship between SARS-CoV-2 and mental health continues to be challenging to understand and interpret$^7$.
 
 
 {{< pagebreak >}}
 
 # References
 
-
-
+1.	Kumar A, Nayar KR. COVID-19 and its mental health consequences. J Ment Health. 2020;30(1):1–2. https://doi.org/10.1080/09638237.2020.1757052
+2.	Blewett LA, Rivera Drew JA, King ML, Williams KCW, Backman D, Chen A, et al. IPUMS Health Surveys: National Health Interview Survey, Version 7.4 [dataset]. Minneapolis, MN: IPUMS; 2024. https://doi.org/10.18128/D070.V7.4
+3.	2018 Physical Activity Guidelines Advisory Committee. 2018 Physical Activity Guidelines Advisory Committee Scientific Report. Washington, DC: U.S. Department of Health and Human Services; 2018.
+4.	U.S. Department of Health and Human Services. 2005 Guide to Healthy Sleep. Maryland: U.S. Department of Health and Human Services; 2011.
+5.	Gupta R, Pandi-Perumal SR. COVID-Somnia: How the Pandemic Affects Sleep/Wake Regulation and How to Deal with it?. Sleep Vigil. 2020;4:51–53. https://doi.org/10.1007/s41782-020-00118-0
+6.	Szkody E, Stearns M, Stanhope L, McKinney C. Stress-buffering role of social support during COVID-19. Fam Process. 2021;60(3):1002–1015. https://doi.org/10.1111/famp.12618
+7.	Rajkumar RP. COVID-19 and mental health: A review of the existing literature. Asian J Psychiatr. 2020;52:102066. https://doi.org/10.1016/j.ajp.2020.102066
