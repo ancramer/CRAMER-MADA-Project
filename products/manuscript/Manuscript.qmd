@@ -47,10 +47,11 @@ author's own and don't reflect those of the University of Georgia.
 
 # Summary/Abstract
 
-Isolation and quarantine strategies employed for containment of SARS-Cov-2 infection led to unexpected mental health struggles among the population of the United States. Infected individuals and healthy individuals were affected, but little is known about the potential relationships between mental health and physical health. In this study, we utilized Nataional Health Information Surveys from 2019-2021 to examine the relationships between receieving a positive COVID-19 test and self reporting mental health factors such as meeting recommended guidelines for exercise, meeting the recommended number of hours of sleep per night, reporting feeling depressed recently, reporting having trouble sleeping recently, and reporting receiving less social support. 
+Isolation and quarantine strategies employed for containment of SARS-Cov-2 infection led to unexpected mental health struggles among the population of the United States. Infected individuals and healthy individuals were affected, but little is known about the potential relationships between mental health and physical health. In this study, we utilized Nataional Health Information Surveys from 2020-2022 to examine the relationships between receieving a positive COVID-19 test and self reporting mental health factors such as meeting recommended guidelines for exercise, meeting the recommended number of hours of sleep per night, reporting feeling depressed recently, reporting having trouble sleeping recently, and reporting receiving less social support. 
 
-We find 
+Analysis is completed using complex survey design to find prevalence of mental health factors. Single models are used to determine associations, and logistic regression, LASSO regression, and a random forest model are explored to determine predictive power.
 
+We find touble sleeping, meeting exercise requirements, and getting enough sleep were common mental health struggles in the United States. Social support was found to vary by COVID-19 test status, and found to be protective againt receiveing a postive COVID-19 test. Trouble sleeping and getting enough sleep were found to very slightly increase chances of recieving a positive COVID-19 test.
 
 {{< pagebreak >}}
 
@@ -102,7 +103,7 @@ knitr::include_graphics(here("results","figures", "flowchart.png"))
 
 ## Data aquisition
 
-National Health Information Survey data was obtained from IPUMS, used with permission. Data was subsetted to years 2019-2022, to cover the brunt of pandemic years. Despite low prevelance of COVID-19 cases in 2019 worldwide, the appearance of COVID-19 in the news (and consequential potential impact on mental health factors) led us to include this data. The final dataset contains 151406 observations.
+National Health Information Survey data was obtained from IPUMS, used with permission. Data was subsetted to years 2020-2022, to cover the brunt of pandemic years. Despite low prevelance of COVID-19 cases in 2019 worldwide, the appearance of COVID-19 in the news (and consequential potential impact on mental health factors) led us to include this data. Additionally, United States citizens were not being widely tested for COVID-19 before 2020. The final dataset contains 151406 observations.
 
 
 ## Data import and cleaning
@@ -222,7 +223,7 @@ The exploratory analysis revelaed that feeling depressed occurs a prevalence of 
 
 The exploratory analysis revealed prevalence of mental health factors among the population by COVID-19 test status. Interestingly, individuals who reported receiving less social support occured at a higher rate for those who did not test positive for COVID-19 (0.10 (0.10, 0.10)) than those who did test positive for COVID-19 (0.08 (0.07, 0.09)) (Tab. 2). A difference in prevalence between COVID-19 test status was not noted for individuals who reported no change/more social support.
 
-Single models quantified association of each mental health factor with a positive COVID-19 test. Feeling depressed, and getting exercise were not significantly associated witha positive COVID-19 test (Tab. 3). Getting enough sleep was found to slightly increase the odds of a positive COVID-19 test (OR = 1.076 (1.026–1.13), p = 0.003). Getting less social support was found to slightly decrease the odds of a positive COVID-19 test (OR = 0.777, (0.691, 0.875), p < 0.0001). This may indicate effectiveness of societal control strategies, that is, social distancing, quarantine, and isolation in preventing spread of COVID-19. Reporting trouble sleeping was found to slightly increase the odds of a positive COVID-19 test (OR = 1.134 (1.067, 1.206), p < 0.0001), which slightly disagrees with results of the SLEEP vairbale described earlier (Tab. 3).
+Single models quantified association of each mental health factor with a positive COVID-19 test. Feeling depressed, and getting exercise were not significantly associated witha positive COVID-19 test (Tab. 3). Getting enough sleep was found to slightly increase the odds of a positive COVID-19 test (OR = 1.076 (1.026–1.13), p = 0.003). Getting less social support was found to slightly decrease the odds of a positive COVID-19 test (OR = 0.777, (0.691, 0.875), p < 0.0001). This may indicate effectiveness of societal control strategies, that is, social distancing, quarantine, and isolation in preventing spread of COVID-19. Reporting trouble sleeping was found to slightly increase the odds of a positive COVID-19 test (OR = 1.134 (1.067, 1.206), p < 0.0001), which slightly disagrees with results of the SLEEP variable described earlier (Tab. 3).
 
 Individuals who reported recent trouble sleeping were occured at a higher prevalence for those who tested postive for COVID-19 (0.374 (0.36, 0.39)) than those who did not recieve a positive COVID-19 test  (0.345 (0.34, 0.35)). Individuals who did not report recent trouble sleeping showed a difference by COVID-19 test status, with less testing positive for COVID-19 (0.626 (0.61, 0.64)) and more not testing positive for COVID-19 (0.655 (0.65, 0.66)) (Tab. 2).
 
