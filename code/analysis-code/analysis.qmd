@@ -39,16 +39,14 @@ TROUBLE_SLEEPING: If individual reported having trouble sleeping over past sever
 SOCIAL: If person felt like they were reciveing less social support or not
 COVID: If they've tested positive for covid or not
 
-We create estimates and CIs using complex survery design variables, using the multiple imputed data.
-
+We create estimates and CIs using complex survery design variables, using the multiple imputed data. This will find estimates for overall, and by COVID-19 test status.
 ```{r}
-
 # Create survey design objects for each transformed dataset
 svy_designs <- lapply(data_imputed, function(data) {
   svydesign(ids = ~PSU, strata = ~STRATA, weights = ~SAMPWEIGHT, data = data , nest=TRUE)
 })
 
-# Function to get complete estimates (both 0 and 1) stratified by COVID status
+
 get_complete_stratified_estimates <- function(var_name) {
   results <- data.frame(
     Variable = character(),
@@ -59,36 +57,32 @@ get_complete_stratified_estimates <- function(var_name) {
     CI_upper = numeric(),
     stringsAsFactors = FALSE
   )
-  
-  # Loop through COVID status (0 and 1)
-  for (covid_val in c(0, 1)) {
-    covid_label <- ifelse(covid_val == 0, "Negative", "Positive")
-    
-    # Calculate proportions for this COVID status
-    props <- lapply(svy_designs, function(design) {
-      # Create a subset design
-      subdesign <- subset(design, COVID == covid_val)
-      # Create formula for the variable
+
+  # Loop through COVID status: Negative (0), Positive (1), Overall (NA)
+  for (covid_val in c(0, 1, NA)) {
+    if (is.na(covid_val)) {
+      covid_label <- "Overall"
+      subset_designs <- svy_designs  # No subsetting
+    } else {
+      covid_label <- ifelse(covid_val == 0, "Negative", "Positive")
+      subset_designs <- lapply(svy_designs, function(design) subset(design, COVID == covid_val))
+    }
+
+    # Calculate proportions for this COVID status or overall
+    props <- lapply(subset_designs, function(design) {
       formula <- as.formula(paste0("~factor(", var_name, ")"))
-      # Calculate proportions
-      svymean(formula, subdesign, na.rm = TRUE)
+      svymean(formula, design, na.rm = TRUE)
     })
-    
+
     # Pool results
     pooled <- MIcombine(props)
-    
-    # Extract results for both binary values (if available)
     coef_names <- names(coef(pooled))
-    
-    # Handle different potential naming patterns
+
     for (bin_val in c(0, 1)) {
-      # Check different possible coefficient names
       possible_names <- c(
         paste0("factor(", var_name, ")", bin_val),
         as.character(bin_val)
       )
-      
-      # Find the matching coefficient name
       coef_idx <- NULL
       for (name in possible_names) {
         if (name %in% coef_names) {
@@ -96,13 +90,11 @@ get_complete_stratified_estimates <- function(var_name) {
           break
         }
       }
-      
-      # If found, extract estimates
+
       if (!is.null(coef_idx)) {
         est <- coef(pooled)[coef_idx]
         ci <- confint(pooled)[coef_idx, ]
-        
-        # Add to results
+
         results <- rbind(results, data.frame(
           Variable = var_name,
           COVID_Status = covid_label,
@@ -114,14 +106,12 @@ get_complete_stratified_estimates <- function(var_name) {
       }
     }
   }
-  
+
   return(results)
 }
-
-# Variables to analyze
 variables <- c("EXERCISE", "SLEEP", "DEPRESSED", "TROUBLE_SLEEPING", "SOCIAL")
 
-# Get complete stratified estimates for each variable
+# Get complete stratified + overall estimates for each variable
 complete_results <- lapply(variables, get_complete_stratified_estimates)
 
 # Combine results into a single data frame
@@ -134,7 +124,6 @@ formatted_results <- complete_df %>%
   arrange(Variable, COVID_Status, desc(Binary_Label))
 
 print(formatted_results)
-
 ```
 
 Now let's turn that into a nice table using GT, and I'll save it to use in the manuscript later. 
@@ -144,9 +133,8 @@ summary(formatted_results)
 str(formatted_results)
 names(formatted_results)
 
-# Prepare the data by combining Variable and Binary_Label, pivoting, and formatting the results
 table1_imputed <- formatted_results %>%
-  mutate(Binary_Label = ifelse(Binary_Label == "Yes", 1, 0),  # Convert Yes to 1 and No to 0
+  mutate(Binary_Label = ifelse(Binary_Label == "Yes", 1, 0),
          Variable_Label = paste(Variable, Binary_Label, sep = " = ")) %>%
   pivot_wider(
     names_from = COVID_Status,
@@ -154,13 +142,15 @@ table1_imputed <- formatted_results %>%
     names_glue = "{COVID_Status}_{.value}"
   ) %>%
   mutate(
-    # Scale the estimates and CI by 0.01
     Estimate_Negative = Negative_Estimate * 0.01,
     CI_Negative = sprintf("(%.2f, %.2f)", Negative_CI_lower * 0.01, Negative_CI_upper * 0.01),
     Estimate_Positive = Positive_Estimate * 0.01,
-    CI_Positive = sprintf("(%.2f, %.2f)", Positive_CI_lower * 0.01, Positive_CI_upper * 0.01)
+    CI_Positive = sprintf("(%.2f, %.2f)", Positive_CI_lower * 0.01, Positive_CI_upper * 0.01),
+    Estimate_Overall = Overall_Estimate * 0.01,
+    CI_Overall = sprintf("(%.2f, %.2f)", Overall_CI_lower * 0.01, Overall_CI_upper * 0.01)
   ) %>%
-  select(Variable_Label, Estimate_Negative, CI_Negative, Estimate_Positive, CI_Positive) %>%
+  select(Variable_Label, Estimate_Negative, CI_Negative,
+         Estimate_Positive, CI_Positive, Estimate_Overall, CI_Overall) %>%
   gt() %>%
   tab_header(
     title = "Estimated proportions of mental health related factors by COVID test status"
@@ -173,13 +163,21 @@ table1_imputed <- formatted_results %>%
     label = "COVID Positive",
     columns = c(Estimate_Positive, CI_Positive)
   ) %>%
+  tab_spanner(
+    label = "Overall",
+    columns = c(Estimate_Overall, CI_Overall)
+  ) %>%
   cols_label(
-    Variable_Label = "Variable",               # Rename Variable_Label to Variable
-    Estimate_Negative = "Estimate",            # Rename Estimate_Negative to Estimate
-    CI_Negative = "95% CI",                    # Rename CI_Negative to 95% CI
-    Estimate_Positive = "Estimate",            # Rename Estimate_Positive to Estimate
-    CI_Positive = "95% CI"                     # Rename CI_Positive to 95% CI
+    Variable_Label = "Variable",
+    Estimate_Negative = "Estimate",
+    CI_Negative = "95% CI",
+    Estimate_Positive = "Estimate",
+    CI_Positive = "95% CI",
+    Estimate_Overall = "Estimate",
+    CI_Overall = "95% CI"
   )
+
+print(table1_imputed)
 
 # Save the table as a PNG
 here()
