@@ -75,7 +75,8 @@ Data for this project is survey data collected from the National Health Intervie
 ## Questions/Hypotheses to be addressed
 
 1.) What is the prevalence of poor mental health?
-2.) Is poor mental health associated with a positive covid test?
+2.) Is poor mental health associated with a positive COVID-19 test?
+3.) Can mental health facotrs be used to predict if an individual will recieve a positive COVID-19 test?
 
 Factors studied include:
 1.) Average self-reported hours of sleep per night, 
@@ -219,7 +220,7 @@ knitr::include_graphics(here("results","figures", "rf_calibration_all_imputation
 # Discussion
 
 ## Summary and Interpretation
-The exploratory analysis revelaed that feeling depressed occurs a prevalence of 0.095 (0.09, 0.10). meeting exercise requiremnts occurs at a prevalence of  0.526 (0.52, 0.53), getting enough sleep occurs at a prevalence of 0.494 (0.49, 0.50), recieving less social support occurs at a prevalence of 0.097 (0.09, 0.10), and having trouble sleeping occurs at a prevalence of 0.630 (0.62, 0.64) (Tab. 2). Several of these factors occur in the majority of the population, that is, trouble sleeping and exercise, and getting enough sleep occured in almost half the population. Feeling depressed and recieving less socual support occured in a small fraction of the population (Tab. 2).
+The exploratory analysis revelaed that feeling depressed occurs a prevalence of 0.095 (0.09, 0.10). meeting exercise requirements occurs at a prevalence of  0.526 (0.52, 0.53), getting enough sleep occurs at a prevalence of 0.494 (0.49, 0.50), recieving less social support occurs at a prevalence of 0.097 (0.09, 0.10), and having trouble sleeping occurs at a prevalence of 0.630 (0.62, 0.64) (Tab. 2). Several of these factors occur in the majority of the population, that is, trouble sleeping and exercise, and getting enough sleep occured in almost half the population. Feeling depressed and recieving less socual support occured in a small fraction of the population (Tab. 2).
 
 The exploratory analysis revealed prevalence of mental health factors among the population by COVID-19 test status. Interestingly, individuals who reported receiving less social support occured at a higher rate for those who did not test positive for COVID-19 (0.10 (0.10, 0.10)) than those who did test positive for COVID-19 (0.08 (0.07, 0.09)) (Tab. 2). A difference in prevalence between COVID-19 test status was not noted for individuals who reported no change/more social support.
 
@@ -239,15 +240,11 @@ Limitations of this study include the nature of survey data. Because individuals
 
 
 ## Conclusions
-We found that indications of poor mental health were common in the population. Most common was  ######%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%INSERT HERE. YOU NEED TO MAKE THIS TABLE FOR NON SPLIT BY COVID TEST AND WRITE RESULTS IN. ALSO YOU NEED TO PUT IN CITAIONS Differences between individuals who tested positive for COVID-19 and who didn't test positive for COVID-19 were found among those who indicated recieveing less social support and those who reported trouble sleeping. However, these differences were relatively small.
+We found that indications of poor mental health were common in the population United States population, with trouble sleeping, exercise, and getting enough sleep, while depressed and social isolation occured in at a lower prevalence (Tab. 2). Sleep difficulties were commonly reported during the SARS-CoV-2 pandemic, which supports these results. CITE ME %%%%%%%%
 
-Predictive modeling with logistic regression, LASSO regression, and random forest models showed weak preformance and low predicitve power, indicating mental health factors show little indication of COVID-19 test status.
+Social support was the only mental health variable to vary among the population by COVID-19 test status (Tab. 2). Interestingly, recieving less social support was found to be protective against SARS-CoV-2 (Tab. 3). This is likely due to isolation and quarantining practices that occured during thee years 2020-2022. CITE ME %%%%%
 
-Despite the lack of strong results, these findings show the complications in understanding how mental health and physical health are related. Little consideration was given to the impacts of societal measures for disease control at the start of the SARS-CoV-2 pandemic, and it's proven difficult to find such connections in the data. Future work may explore these topics further by using longitudinal data to track changes in mental health over the duration of COVID-19 infection. Future surveys may differentiate the experinces of various disease control measures (quarantining, isolation, masking, etc.) or mental health conditions (feelings of anxiety, educational impacts) to further specify the potential impacts on mental health. Finally, including complete survey design in the creation of the full models would offer more generalizable results towards the United States population.
-
-1.) What is the prevalence of poor mental health?
-2.) Is poor mental health associated with a positive covid test? 
-
+Predictive models showed weak preformancce and poor predicitve power (Figs. 2, 3). The relationship between SARS-CoV-2 and mental health continues to be challenging to understand and interpret.
 
 _Include citations in your Rmd file using bibtex, the list of references will automatically be placed at the end_
 
